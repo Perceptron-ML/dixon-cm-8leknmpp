@@ -58,6 +58,16 @@
       ];
     }
 
+    /* policy and client-preference details */
+    if (!c.policy) {
+      c.policy = {
+        liability: pick(c.id + "pol", ["$25,000 / $50,000", "$50,000 / $100,000", "$100,000 / $300,000", "$250,000 / $500,000", "$1,000,000 CSL"]),
+        um: pick(c.id + "um", ["$25,000", "$50,000", "$100,000", "None on file"])
+      };
+    }
+    if (!c.pref) c.pref = pick(c.id + "pref", ["Text", "Call", "Email"]);
+    if (!c.language) c.language = (c.client === "Maria Alvarez" || c.client === "Gloria Sandoval") ? "Spanish" : "English";
+
     /* referral source (deterministic) */
     if (!c.source) {
       const r = hash(c.id + "src") % 10;

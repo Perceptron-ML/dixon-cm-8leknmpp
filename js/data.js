@@ -514,6 +514,10 @@ CASES[15].lienLedger = [
   { holder: "Mercy Hospital South", original: 76000, current: 49400, status: "Reduced", note: "Final reduction letter received, paid at disbursement", date: "2026-07-10" }
 ];
 
+/* Referring-attorney arrangements */
+CASES[12].referral = { by: "Kellerman Law, referring attorney", share: "25 percent of the fee" };
+CASES[14].referral = { by: "Vasquez & Reed LLC, referring attorney", share: "33 percent of the fee" };
+
 /* Two-way client texting thread for the featured case */
 CASES[0].texts = [
   { from: "firm", text: "Hi Marcus, State Farm sent a revised offer of $98,000. Chris would like to walk you through it. Does Thursday at 10 AM work for a call?", when: "Aug 4, 2:12 PM" },

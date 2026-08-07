@@ -181,18 +181,31 @@ lien negotiation history, referral fee tracking, document versioning.
   pin/star cases to the top of the table.
 - All verified by scripted browser checks; zero console errors.
 
-## Next candidates (lawyer wishlist, continue in order)
-6. Unified case timeline tab (docs + notes + emails + texts + stage moves).
-7. One-page case summary export (print stylesheet route per case).
-8. Policy limits + UM/UIM fields on Details.
-9. Treatment gap warning (no treatment logged in 30 days).
-10. Snooze buttons on My Tasks rows (+3d, +1w).
-11. Note-to-task conversion ("@Dana" in a note creates an assigned task).
-12. Bulk actions on cases table. 13. Duplicate-client warning on New Case.
-14. Preferred contact + language fields. 15. Referral fee share per case.
-16. Court appearances view. 17. Conflict check shows matched names.
-18. "Last touched by" on case header. 19. Keyboard nav on tables.
-20. Calendar week view. Then: portal texts sync, editable notes, New Lead.
+### Iteration 10 (2026-08-07) - lawyer wishlist 6-20, all shipped
+- Timeline tab per case (docs, notes, emails, completed tasks, case opened, newest first).
+- Summary: one-page case sheet (Summary button in case actions) with a Print
+  button using the print stylesheet.
+- Policy limits + UM/UIM on Details (enrich defaults, editable).
+- Treatment gap banner on Treating cases with 30+ days since new records
+  (fires on Pryor), with a Text-the-client button.
+- Snooze (one week) buttons on My Tasks with undo.
+- Note-to-task: "@Dana/@Renee/@Chris ..." in a note creates a task due in 3 days.
+- Bulk select on cases table: assign to Dana/Renee, clear; ink bulk bar.
+- Duplicate/conflict warning as you type a New Case name (matches cases and
+  contacts); conflict-check toast names the match or the counts.
+- Preferred contact + language fields (Spanish flagged for Alvarez, Sandoval).
+- Referral fee share rows on referred cases (Sandoval, Pryor).
+- Calendar: Month/Week toggle (week = 7 tall scrollable columns with times),
+  All events / Court dates only filter (depositions, mediations, exams).
+- "Last touched" line under the case title (date + latest note author).
+- Keyboard nav: j/k moves through the cases table, Enter opens; cmd-K / slash
+  already focuses search.
+- All verified by scripted browser checks; zero console errors.
+
+## Next candidates
+1. Portal: messages thread synced with Comms texts.
+2. Editable notes (edit/delete existing notes).
+3. New Lead button + lead detail view.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but

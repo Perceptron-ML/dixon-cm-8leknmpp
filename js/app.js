@@ -37,6 +37,7 @@
     upload: S + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 8 5-5 5 5"/><path d="M12 3v12"/></svg>',
     flow: S + '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
     star: S + '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3L7 14.2 2 9.3l6.9-1z"/></svg>',
+    clock: S + '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
     shield: S + '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/></svg>'
   };
 
@@ -83,6 +84,7 @@
     return dates.sort().pop() || c.opened;
   }
   const daysSince = iso => Math.round((new Date(TODAY) - new Date(iso)) / 86400000);
+  const plusDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
   function relatedContacts(c) {
     const out = [];
@@ -424,6 +426,7 @@
             <div style="min-width:0"><div class="check-label">${esc(t.label)}</div>
             <div class="td-sub">${esc(t.client)} · ${esc(t.stage)}${taskPerson === "Everyone" ? " · " + esc(t.owner) : ""}</div></div>
             <span class="check-due ${t.due && t.due <= "2026-08-14" ? "soon" : ""}">${t.due ? fmtDate(t.due) : ""}</span>
+            <button class="mini-btn task-snooze" data-snoozecase="${t.caseId}" data-snoozeidx="${t.idx}" title="Snooze one week">${I.clock}</button>
           </div>`).join("") || `<div class="empty-state">Nothing open. Enjoy it while it lasts.</div>`}
         </div>
       </div>`;
@@ -432,6 +435,7 @@
   /* ---------- cases ---------- */
 
   let caseFilter = "All";
+  const bulkSel = new Set();
 
   function viewCases() {
     const rows = CASES.filter(c => caseFilter === "All" || c.stage === caseFilter)
@@ -444,16 +448,25 @@
       <div class="filter-row">
         ${["All", ...STAGES].map(st => `<button class="chip ${caseFilter === st ? "active" : ""}" data-stage="${st}">${st}</button>`).join("")}
       </div>
+      ${bulkSel.size ? `<div class="bulk-bar">
+        <strong>${bulkSel.size} selected</strong>
+        <button class="btn btn-ghost btn-sm" data-bulkassign="Dana Ellis">Assign to Dana</button>
+        <button class="btn btn-ghost btn-sm" data-bulkassign="Renee Carter">Assign to Renee</button>
+        <button class="btn btn-ghost btn-sm" id="bulkClear">Clear</button>
+      </div>` : ""}
       <div class="card table-wrap">
         <table>
-          <thead><tr><th style="width:40px"></th><th>Client</th><th>Case</th><th>Stage</th><th>Insurer</th><th>Paralegal</th><th>Est. Value</th><th>Last Activity</th><th>Documents</th></tr></thead>
+          <thead><tr><th style="width:76px"></th><th>Client</th><th>Case</th><th>Stage</th><th>Insurer</th><th>Paralegal</th><th>Est. Value</th><th>Last Activity</th><th>Documents</th></tr></thead>
           <tbody>
             ${rows.map(c => {
               const la = lastActivity(c);
               const ds = daysSince(la);
               const stale = c.stage !== "Settled" && ds > 21;
               return `<tr onclick="location.hash='#/case/${c.id}'">
-              <td><button class="mini-btn pin-btn ${c.pinned ? "pinned" : ""}" data-pin="${c.id}" title="${c.pinned ? "Unpin" : "Pin to top"}">${I.star}</button></td>
+              <td><div style="display:flex;align-items:center;gap:7px">
+                <input type="checkbox" class="bulk-ck" data-bulk="${c.id}" ${bulkSel.has(c.id) ? "checked" : ""} onclick="event.stopPropagation()">
+                <button class="mini-btn pin-btn ${c.pinned ? "pinned" : ""}" data-pin="${c.id}" title="${c.pinned ? "Unpin" : "Pin to top"}">${I.star}</button>
+              </div></td>
               <td><div class="td-main">${esc(c.client)}</div><div class="td-sub">${esc(c.phone)}</div></td>
               <td><div>${esc(c.type)}</div><div class="td-sub">${c.num}</div></td>
               <td><span class="stage-pill ${stageClass(c.stage)}">${c.stage}</span></td>
@@ -473,6 +486,7 @@
     openModal(`
       <div class="form-head"><h2>New Case</h2><button class="icon-btn" data-close>${I.x}</button></div>
       <div class="form-note">Opening a case creates the Drive folder set, checklist, and intake tasks automatically.</div>
+      <div class="dup-warn" id="dupWarn"></div>
       <div class="form-grid">
         <label>Client name<input id="f-name" type="text" placeholder="First Last"></label>
         <label>Case type<select id="f-type">${["Car Accident", "Truck Accident", "Motorcycle Accident", "Workers Comp", "Slip and Fall", "Dog Bite", "Premises Liability", "Pedestrian Accident", "Other Injury"].map(t => `<option>${t}</option>`).join("")}</select></label>
@@ -480,6 +494,16 @@
         <label>Incident date<input id="f-date" type="date" value="2026-08-01"></label>
       </div>
       <div class="form-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="f-save">Open Case</button></div>`);
+    $("#f-name").addEventListener("input", () => {
+      const parts = $("#f-name").value.trim().toLowerCase().split(/\s+/);
+      const last = parts[parts.length - 1];
+      const dup = last && last.length > 2 && CASES.find(x => x.client.toLowerCase().split(/\s+/).includes(last));
+      const conflict = last && last.length > 2 && CONTACTS.find(x => x.kind !== "Firm" && x.name.toLowerCase().split(/\s+/).includes(last));
+      $("#dupWarn").innerHTML = dup
+        ? `Possible duplicate or conflict: existing file for <strong>${esc(dup.client)}</strong> (${dup.num}, ${dup.stage}). Review before opening.`
+        : conflict ? `Conflict check: <strong>${esc(conflict.name)}</strong> (${esc(conflict.org)}) is in contacts as ${esc(conflict.role)}. Review before opening.` : "";
+      $("#dupWarn").style.display = dup || conflict ? "block" : "none";
+    });
     $("#f-save").addEventListener("click", () => {
       const name = $("#f-name").value.trim() || "New Client";
       const id = "c" + (CASES.length + 1) + Date.now().toString().slice(-4);
@@ -503,7 +527,11 @@
       });
       logActivity(`New case opened: ${name}. Drive folder set and checklist created`);
       closeModal();
-      toast("Conflict check passed. Case opened with Drive folders and checklist");
+      const last = name.toLowerCase().split(/\s+/).pop();
+      const dup = CASES.find(x => x.id !== id && x.client.toLowerCase().split(/\s+/).includes(last));
+      toast(dup
+        ? `Case opened with a conflict note: existing file for ${dup.client}`
+        : `Conflict check passed against ${CASES.length} cases and ${CONTACTS.length} contacts. Case opened`);
       location.hash = "#/case/" + id;
     });
   };
@@ -519,6 +547,7 @@
     const newCount = c.docs.filter(d => d.isNew).length;
     const tabs = [
       ["overview", "Overview"],
+      ["timeline", "Timeline"],
       ["medicals", "Medicals"],
       ["negotiation", "Negotiation"],
       ["checklist", "Checklist"],
@@ -539,10 +568,12 @@
               <span class="stage-pill ${stageClass(c.stage)}">${c.stage}</span>
               <span class="case-num">${esc(c.type)} · ${c.num} · ${esc(c.attorney)}${specials ? ` · <strong>${money(specials)}</strong> in specials` : ""}</span>
             </div>
+            <div class="td-sub" style="margin-top:5px">Last touched ${(() => { const la = lastActivity(c); const ds = daysSince(la); const by = c.notes.slice().sort((a, b) => b.date.localeCompare(a.date))[0]; return `${ds === 0 ? "today" : ds === 1 ? "yesterday" : fmtDate(la)}${by ? " · latest note by " + esc(by.by) : ""}`; })()}</div>
           </div>
           <div class="case-actions">
             <a class="icon-btn" href="tel:${esc(c.phone.replace(/[^0-9]/g, ""))}" title="Call ${esc(c.client.split(" ")[0])} at ${esc(c.phone)}">${S}<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.5 2.8.7a2 2 0 0 1 1.7 2z"/></svg></a>
             <button class="icon-btn" onclick="location.hash='#/case/${c.id}/emails'" title="Text ${esc(c.client.split(" ")[0])}">${I.chat}</button>
+            <button class="btn btn-ghost" onclick="location.hash='#/case/${c.id}/summary'">Summary</button>
             <button class="btn btn-ghost" onclick="openPortal('${c.id}')">Client View</button>
             <button class="btn btn-ghost" onclick="genDoc('${c.id}')">Generate Document</button>
             <button class="btn btn-primary" onclick="addNote('${c.id}')">Log Activity</button>
@@ -574,7 +605,13 @@
       if (text) {
         c.notes.unshift({ date: TODAY, by: "Chris Dixon", text });
         logActivity(`Note added to ${c.client}`);
-        toast("Note saved to the file");
+        const mention = text.match(/@(Dana|Renee|Chris)\b[:,]?\s*(.*)/i);
+        if (mention) {
+          c.checklist.push({ label: (mention[2].trim() || "Follow up from note").slice(0, 90), done: false, due: plusDays(TODAY, 3) });
+          toast(`Note saved. Task created for ${mention[1]} due ${fmtDate(plusDays(TODAY, 3))}`);
+        } else {
+          toast("Note saved to the file");
+        }
       }
       closeModal();
       refresh();
@@ -610,7 +647,11 @@
 
   function caseTab(c, tab) {
     if (tab === "overview") {
-      return `<div class="case-grid">
+      const medLast = c.docs.filter(d => d.folder === "02 Medical Records").map(d => d.date).sort().pop();
+      const gap = c.stage === "Treating" && medLast ? daysSince(medLast) : 0;
+      return `${gap > 30 ? `<div class="alert-banner">Possible treatment gap: no new medical records in ${gap} days. Gaps hurt case value, check in with ${esc(c.client.split(" ")[0])}.
+        <button class="btn btn-primary btn-sm" onclick="location.hash='#/case/${c.id}/emails'">Text the client</button></div>` : ""}
+      <div class="case-grid">
         <div class="dash-col">
           <div class="card">
             <div class="card-head"><h2>Case Facts</h2><button class="btn btn-ghost btn-sm" onclick="editFacts('${c.id}')">Edit</button></div>
@@ -630,6 +671,9 @@
                   ["Client Phone", esc(c.phone)], ["Client Email", esc(c.email)]];
                 if (c.court) rows.push(["Court", esc(c.court.venue)], ["Judge", esc(c.court.judge)],
                   ["Court Case No.", esc(c.court.caseNo)], ["Division", esc(c.court.division)]);
+                rows.push(["Policy Limits", esc(c.policy.liability)], ["UM/UIM Coverage", esc(c.policy.um)],
+                  ["Preferred Contact", esc(c.pref)], ["Language", esc(c.language)]);
+                if (c.referral) rows.push(["Referred By", esc(c.referral.by)], ["Referral Fee", esc(c.referral.share)]);
                 return rows.map(([k, v]) => `<div class="kv"><div class="kv-label">${k}</div><div class="kv-value">${v}</div></div>`).join("");
               })()}
             </div>
@@ -670,6 +714,52 @@
               </div>`).join("") || `<div class="empty-state">No linked contacts yet.</div>`}
             </div>
           </div>
+        </div>
+      </div>`;
+    }
+
+    if (tab === "timeline") {
+      const items = [
+        ...c.docs.map(d => ({ date: d.date, icon: "doc", label: d.name, sub: "Filed to " + d.folder })),
+        ...c.notes.map(n => ({ date: n.date, icon: "pen", label: n.text, sub: "Note by " + n.by })),
+        ...(c.emails || []).map(e => ({ date: e.date, icon: "mail", label: e.subject, sub: "Email · " + e.from })),
+        ...c.checklist.filter(k => k.done && k.date).map(k => ({ date: k.date, icon: "check", label: k.label, sub: "Task completed" })),
+        { date: c.opened, icon: "case", label: "Case opened, Drive folders and checklist created", sub: "Intake" }
+      ].sort((a, b) => b.date.localeCompare(a.date));
+      return `<div class="card">
+        <div class="card-head"><h2>Timeline</h2><span class="drive-note">Every touch on this file, newest first. Nothing lives in anyone's head.</span></div>
+        <div class="feed">
+          ${items.map(it => `<div class="feed-item no-click" style="cursor:default">
+            <div class="feed-icon ${it.icon === "check" ? "green" : it.icon === "mail" ? "blue" : ""}">${I[it.icon] || I.doc}</div>
+            <div class="feed-body"><div class="feed-title" style="font-weight:500">${esc(it.label)}</div><div class="feed-sub">${esc(it.sub)}</div></div>
+            <span class="check-due" style="margin-left:auto;flex-shrink:0">${fmtDate(it.date)}</span>
+          </div>`).join("")}
+        </div>
+      </div>`;
+    }
+
+    if (tab === "summary") {
+      const specials = c.medicals.reduce((s, m) => s + m.billed, 0);
+      const liens = c.lienLedger.reduce((s, l) => s + l.current, 0);
+      const expenses = c.expenses.reduce((s, e) => s + e.amount, 0);
+      return `<div class="card summary-sheet">
+        <div class="card-head"><h2>Case Summary</h2><button class="btn btn-primary btn-sm" onclick="window.print()">Print</button></div>
+        <div class="facts"><strong>${esc(c.client)}</strong> · ${esc(c.type)} · ${c.num} · ${c.stage} · Incident ${fmtDate(c.incident)} · SOL ${fmtDate(c.sol)}</div>
+        <div class="facts" style="padding-top:0">${esc(c.facts)}</div>
+        <div class="kv-grid">
+          ${[["Insurer / Claim", `${esc(c.insurer)} · ${esc(c.claimNo)}`], ["Adjuster", esc(c.adjuster)],
+             ["Policy Limits", esc(c.policy.liability)], ["UM/UIM", esc(c.policy.um)],
+             ["Medical Specials", money(specials)], ["Liens (current)", money(liens)],
+             ["Expenses Advanced", money(expenses)], ["Est. Value", money(c.estValue)]]
+            .map(([k, v]) => `<div class="kv"><div class="kv-label">${k}</div><div class="kv-value">${v}</div></div>`).join("")}
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Provider</th><th>Status</th><th>Billed</th><th>Lien</th></tr></thead>
+          <tbody>${c.medicals.map(m => `<tr class="no-click"><td>${esc(m.provider)}</td><td>${m.status}</td><td class="money">${money(m.billed)}</td><td class="money">${m.lien ? money(m.lien) : "None"}</td></tr>`).join("")}</tbody>
+        </table></div>
+        ${c.negotiation.length ? c.negotiation.map(n => `<div class="neg-item"><div class="neg-amount money">${money(n.amount)}</div><div><div class="neg-kind ${n.kind.toLowerCase()}">${n.kind} · ${esc(n.party)}</div><div class="neg-note">${esc(n.note)}</div></div><div class="neg-date">${fmtDate(n.date)}</div></div>`).join("") : ""}
+        <div class="check-list">
+          ${c.checklist.filter(k => !k.done).map(k => `<div class="check-item"><span class="check-box"></span><span class="check-label">${esc(k.label)}</span>${k.due ? `<span class="check-due">${fmtDate(k.due)}</span>` : ""}</div>`).join("")}
         </div>
       </div>`;
     }
@@ -930,9 +1020,15 @@
       { id: "phone", label: "Client phone", value: c.phone },
       { id: "email", label: "Client email", value: c.email },
       { id: "estValue", label: "Estimated value", value: c.estValue.toLocaleString("en-US") },
-      { id: "sol", label: "Statute of limitations (YYYY-MM-DD)", value: c.sol }
+      { id: "sol", label: "Statute of limitations (YYYY-MM-DD)", value: c.sol },
+      { id: "liability", label: "Policy limits", value: c.policy.liability },
+      { id: "um", label: "UM/UIM coverage", value: c.policy.um },
+      { id: "pref", label: "Preferred contact", type: "select", options: ["Text", "Call", "Email"], value: c.pref },
+      { id: "language", label: "Language", value: c.language }
     ], v => {
-      Object.assign(c, { insurer: v.insurer, claimNo: v.claimNo, adjuster: v.adjuster, paralegal: v.paralegal, phone: v.phone, email: v.email });
+      Object.assign(c, { insurer: v.insurer, claimNo: v.claimNo, adjuster: v.adjuster, paralegal: v.paralegal, phone: v.phone, email: v.email, pref: v.pref, language: v.language });
+      c.policy.liability = v.liability;
+      c.policy.um = v.um;
       const ev = parseInt(v.estValue.replace(/[^0-9]/g, ""), 10);
       if (ev) c.estValue = ev;
       if (/^\d{4}-\d{2}-\d{2}$/.test(v.sol.trim())) c.sol = v.sol.trim();
@@ -1312,44 +1408,67 @@
       <div class="form-foot"><button class="btn btn-ghost" data-close>Close</button><button class="btn btn-primary" onclick="addEvent('${iso}')">Add Event This Day</button></div>`);
   };
 
+  let calMode = "month";
+  let calCourt = false;
+  let weekStart = "2026-08-02";
+
   function viewCalendar() {
     const year = 2026;
-    const monthName = new Date(year, calMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    const first = new Date(year, calMonth, 1).getDay();
-    const daysIn = new Date(year, calMonth + 1, 0).getDate();
-    const cells = [];
-    for (let i = 0; i < first; i++) cells.push(null);
-    for (let d = 1; d <= daysIn; d++) cells.push(d);
-    while (cells.length % 7) cells.push(null);
-    const allEvents = getAllEvents();
+    const allEvents = getAllEvents().filter(e => !calCourt || ["Deposition", "Mediation", "Exam"].includes(e.kind));
+    const cellHTML = (iso, dayLabel, cap) => {
+      const evts = allEvents.filter(e => e.date === iso);
+      const shown = cap ? evts.slice(0, cap) : evts;
+      return `<div class="cal-cell cal-live ${calMode === "week" ? "cal-week-cell" : ""} ${iso === TODAY ? "cal-today" : ""}" onclick="openDay('${iso}')" title="Open ${iso}">
+        <span class="cal-day">${dayLabel}</span>
+        ${shown.map(e => `<div class="cal-evt evt-${KIND_COLOR[e.kind] || "gray"}" title="${esc(e.title)}">${calMode === "week" && e.time !== "All day" ? esc(e.time) + " · " : ""}${esc(e.title)}</div>`).join("")}
+        ${cap && evts.length > cap ? `<div class="cal-more">+${evts.length - cap} more</div>` : ""}
+      </div>`;
+    };
+
+    let title, gridBody;
+    if (calMode === "week") {
+      title = `${fmtDate(weekStart)} to ${fmtDate(plusDays(weekStart, 6))}`;
+      gridBody = Array.from({ length: 7 }, (_, i) => {
+        const iso = plusDays(weekStart, i);
+        return cellHTML(iso, +iso.slice(8), 0);
+      }).join("");
+    } else {
+      title = new Date(year, calMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      const first = new Date(year, calMonth, 1).getDay();
+      const daysIn = new Date(year, calMonth + 1, 0).getDate();
+      const cells = [];
+      for (let i = 0; i < first; i++) cells.push(null);
+      for (let d = 1; d <= daysIn; d++) cells.push(d);
+      while (cells.length % 7) cells.push(null);
+      gridBody = cells.map(d => {
+        if (!d) return `<div class="cal-cell cal-empty"></div>`;
+        const iso = `${year}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        return cellHTML(iso, d, 2);
+      }).join("");
+    }
 
     return `
       <div class="page-head">
         <div class="page-title"><h1>Calendar</h1><p>Deadlines, depositions, and calls across every file. Synced with Outlook.</p></div>
         <div class="cal-nav">
-          <button class="icon-btn" id="calPrev" ${calMonth <= 7 ? "disabled" : ""}>${S}<path d="m15 18-6-6 6-6"/></svg></button>
-          <span class="cal-month">${monthName}</span>
-          <button class="icon-btn" id="calNext" ${calMonth >= 9 ? "disabled" : ""}>${S}<path d="m9 18 6-6-6-6"/></svg></button>
+          <button class="icon-btn" id="calPrev">${S}<path d="m15 18-6-6 6-6"/></svg></button>
+          <span class="cal-month">${title}</span>
+          <button class="icon-btn" id="calNext">${S}<path d="m9 18 6-6-6-6"/></svg></button>
           <button class="btn btn-primary" onclick="addEvent()">New Event</button>
         </div>
+      </div>
+      <div class="filter-row">
+        <button class="chip ${calMode === "month" ? "active" : ""}" data-calmode="month">Month</button>
+        <button class="chip ${calMode === "week" ? "active" : ""}" data-calmode="week">Week</button>
+        <span style="width:10px"></span>
+        <button class="chip ${!calCourt ? "active" : ""}" data-calcourt="0">All events</button>
+        <button class="chip ${calCourt ? "active" : ""}" data-calcourt="1">Court dates only</button>
       </div>
       <div class="card cal-card">
         <div class="cal-grid cal-head-row">
           ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<div class="cal-dow">${d}</div>`).join("")}
         </div>
-        <div class="cal-grid">
-          ${cells.map(d => {
-            if (!d) return `<div class="cal-cell cal-empty"></div>`;
-            const iso = `${year}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-            const evts = allEvents.filter(e => e.date === iso);
-            const shown = evts.slice(0, 2);
-            return `<div class="cal-cell cal-live ${iso === TODAY ? "cal-today" : ""}" onclick="openDay('${iso}')" title="Open ${iso}">
-              <span class="cal-day">${d}</span>
-              ${shown.map(e => `<div class="cal-evt evt-${KIND_COLOR[e.kind] || "gray"}" title="${esc(e.title)}">${esc(e.title)}</div>`).join("")}
-              ${evts.length > 2 ? `<div class="cal-more">+${evts.length - 2} more</div>` : ""}
-            </div>`;
-          }).join("")}
-        </div>
+        <div class="cal-grid">${gridBody}</div>
       </div>`;
   }
 
@@ -1904,6 +2023,20 @@
     document.querySelectorAll(".chip[data-person]").forEach(ch => {
       ch.addEventListener("click", () => { taskPerson = ch.dataset.person; refresh(); });
     });
+    document.querySelectorAll(".bulk-ck").forEach(ck => ck.addEventListener("change", () => {
+      ck.checked ? bulkSel.add(ck.dataset.bulk) : bulkSel.delete(ck.dataset.bulk);
+      refresh();
+    }));
+    document.querySelectorAll("[data-bulkassign]").forEach(b => b.addEventListener("click", () => {
+      const who = b.dataset.bulkassign;
+      bulkSel.forEach(id => { caseById(id).paralegal = who; });
+      const n = bulkSel.size;
+      bulkSel.clear();
+      refresh();
+      toast(`${n} case${n > 1 ? "s" : ""} reassigned to ${who}`);
+    }));
+    const bc = $("#bulkClear");
+    if (bc) bc.addEventListener("click", () => { bulkSel.clear(); refresh(); });
     document.querySelectorAll("[data-pin]").forEach(b => b.addEventListener("click", e => {
       e.stopPropagation();
       const c = caseById(b.dataset.pin);
@@ -1934,6 +2067,17 @@
     });
     document.querySelectorAll(".task-row").forEach(r => {
       r.addEventListener("click", () => { location.hash = r.dataset.go; });
+    });
+    document.querySelectorAll(".task-snooze").forEach(b => {
+      b.addEventListener("click", e => {
+        e.stopPropagation();
+        const c = caseById(b.dataset.snoozecase);
+        const item = c.checklist[+b.dataset.snoozeidx];
+        const prev = item.due;
+        item.due = plusDays(item.due || TODAY, 7);
+        refresh();
+        toast(`Snoozed to ${fmtDate(item.due)}`, { undo: () => { item.due = prev; refresh(); } });
+      });
     });
     document.querySelectorAll(".task-check").forEach(cb => {
       cb.addEventListener("click", e => {
@@ -2071,8 +2215,16 @@
     if (parts[0] === "settings") bindSettings();
     if (parts[0] === "calendar") {
       const prev = $("#calPrev"), next = $("#calNext");
-      if (prev) prev.addEventListener("click", () => { if (calMonth > 7) { calMonth--; refresh(); } });
-      if (next) next.addEventListener("click", () => { if (calMonth < 9) { calMonth++; refresh(); } });
+      if (prev) prev.addEventListener("click", () => {
+        if (calMode === "week") { if (weekStart > "2026-08-02") { weekStart = plusDays(weekStart, -7); refresh(); } }
+        else if (calMonth > 7) { calMonth--; refresh(); }
+      });
+      if (next) next.addEventListener("click", () => {
+        if (calMode === "week") { if (weekStart < "2026-10-18") { weekStart = plusDays(weekStart, 7); refresh(); } }
+        else if (calMonth < 9) { calMonth++; refresh(); }
+      });
+      document.querySelectorAll("[data-calmode]").forEach(ch => ch.addEventListener("click", () => { calMode = ch.dataset.calmode; refresh(); }));
+      document.querySelectorAll("[data-calcourt]").forEach(ch => ch.addEventListener("click", () => { calCourt = ch.dataset.calcourt === "1"; refresh(); }));
     }
     if (parts[0] === "reports") {
       const b = $("#exportReport");
@@ -2132,11 +2284,27 @@
   initBuildConsole();
 
   $("#newCaseBtn").addEventListener("click", () => window.newCase());
+  let kbIdx = -1;
   document.addEventListener("keydown", e => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing)) {
       e.preventDefault();
       $("#globalSearch").focus();
+      return;
+    }
+    if (typing || $("#modal").innerHTML) return;
+    if ((location.hash || "#/dashboard").startsWith("#/cases") || location.hash === "" ) {
+      const rows = [...document.querySelectorAll("tbody tr")];
+      if (!rows.length) return;
+      if (e.key === "j" || e.key === "k") {
+        kbIdx = Math.max(0, Math.min(rows.length - 1, kbIdx + (e.key === "j" ? 1 : -1)));
+        rows.forEach(r => r.classList.remove("kb-focus"));
+        rows[kbIdx].classList.add("kb-focus");
+        rows[kbIdx].scrollIntoView({ block: "nearest" });
+      } else if (e.key === "Enter" && kbIdx >= 0 && rows[kbIdx]) {
+        rows[kbIdx].click();
+        kbIdx = -1;
+      }
     }
   });
   bindBell();
