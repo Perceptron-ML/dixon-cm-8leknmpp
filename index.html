@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Dixon Case Manager</title>
+<link rel="icon" href="assets/logo.png">
+<link href="https://api.fontshare.com/v2/css?f[]=sentient@400,500,700&f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="brand-full" src="assets/logo.png" alt="The Dixon Injury Firm">
+      <img class="brand-mark" src="assets/logo-mark.png" alt="The Dixon Injury Firm">
+      <span class="brand-sub">Case Manager</span>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="avatar">CD</div>
+        <div>
+          <div class="user-name">Chris Dixon</div>
+          <div class="user-role">Managing Attorney</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="search" id="searchWrap">
+        <span class="search-icon" id="searchIcon"></span>
+        <input id="globalSearch" type="text" placeholder="Search cases, contacts, and documents" autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="notifBtn" title="Notifications"></button>
+        <button class="btn btn-primary" id="newCaseBtn">New Case</button>
+      </div>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+<div id="modal"></div>
+<div id="toast"></div>
+<script src="js/data.js"></script>
+<script src="js/enrich.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
