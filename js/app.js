@@ -34,7 +34,9 @@
     tasklist: S + '<path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/><path d="m3 6 1.2 1.2L6.5 4.9"/><path d="m3 12 1.2 1.2 2.3-2.3"/><path d="m3 18 1.2 1.2 2.3-2.3"/></svg>',
     pen: S + '<path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>',
     sig: S + '<path d="M2 20c2-2 3-6 5-6s2 4 4 4 3-8 5-8 2 6 4 6 2-2 2-2"/></svg>',
-    upload: S + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 8 5-5 5 5"/><path d="M12 3v12"/></svg>'
+    upload: S + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 8 5-5 5 5"/><path d="M12 3v12"/></svg>',
+    flow: S + '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+    shield: S + '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/></svg>'
   };
 
   const NAV = [
@@ -46,8 +48,9 @@
     { hash: "#/settlements", label: "Settlements", icon: "dollar" },
     { hash: "#/calendar", label: "Calendar", icon: "calendar" },
     { hash: "#/reports", label: "Reports", icon: "chart" },
-    { hash: "#/automations", label: "Automations", icon: "gear" },
-    { hash: "#/contacts", label: "Contacts", icon: "contacts" }
+    { hash: "#/automations", label: "Automations", icon: "flow" },
+    { hash: "#/contacts", label: "Contacts", icon: "contacts" },
+    { hash: "#/settings", label: "Settings", icon: "gear" }
   ];
 
   /* ---------- helpers ---------- */
@@ -268,10 +271,10 @@
       </div>
 
       <div class="stat-row">
-        <div class="stat"><span class="stat-label">Open Cases</span><span class="stat-value">${open.length}</span><span class="stat-note up">3 opened this month</span></div>
-        <div class="stat"><span class="stat-label">Active Leads</span><span class="stat-value">${newLeads.length}</span><span class="stat-note up">${chatLeads} from website chat</span></div>
-        <div class="stat"><span class="stat-label">New Documents Filed</span><span class="stat-value">${newDocs.length}</span><span class="stat-note warn">across ${newDocCases} cases</span></div>
-        <div class="stat"><span class="stat-label">Pipeline Value</span><span class="stat-value">${money(pipelineValue)}</span><span class="stat-note">est. across open files</span></div>
+        <div class="stat clickable" onclick="location.hash='#/cases'"><span class="stat-label">Open Cases</span><span class="stat-value">${open.length}</span><span class="stat-note up">3 opened this month</span></div>
+        <div class="stat clickable" onclick="location.hash='#/leads'"><span class="stat-label">Active Leads</span><span class="stat-value">${newLeads.length}</span><span class="stat-note up">${chatLeads} from website chat</span></div>
+        <div class="stat clickable" onclick="location.hash='#/documents'"><span class="stat-label">New Documents Filed</span><span class="stat-value">${newDocs.length}</span><span class="stat-note warn">across ${newDocCases} cases</span></div>
+        <div class="stat clickable" onclick="location.hash='#/settlements'"><span class="stat-label">Pipeline Value</span><span class="stat-value">${money(pipelineValue)}</span><span class="stat-note">est. across open files</span></div>
       </div>
 
       <div class="card pipeline-card" style="margin-bottom:18px">
@@ -1223,6 +1226,170 @@
       </div>`;
   }
 
+  /* ---------- settings ---------- */
+
+  const PREFS = {
+    toggles: [
+      { key: "filing", label: "New filing summaries", sub: "Text and email when a document lands in a case folder", on: true },
+      { key: "hotlead", label: "Hot lead alerts", sub: "Instant text when a chat lead scores 85 or higher", on: true },
+      { key: "sol", label: "Statute of limitations alerts", sub: "Escalating reminders to attorney and paralegal", on: true },
+      { key: "digest", label: "Morning digest", sub: "One email with deadlines, new filings, and overnight leads", on: true },
+      { key: "clienttext", label: "Client text notifications", sub: "Ping the assigned paralegal when a client texts", on: true }
+    ],
+    solMonths: 24, digestTime: "7:00 AM", feeStd: "33.3 percent", feeLit: "40 percent in litigation", feeWC: "25 percent"
+  };
+
+  const TEAM = [
+    { name: "Chris Dixon", role: "Managing Attorney", perm: "Admin" },
+    { name: "Dana Ellis", role: "Senior Paralegal", perm: "Full access" },
+    { name: "Renee Carter", role: "Paralegal", perm: "Full access" },
+    { name: "Intake Line", role: "After-hours intake service", perm: "Intake only" }
+  ];
+
+  function viewSettings() {
+    return `
+      <div class="page-head">
+        <div class="page-title"><h1>Settings</h1><p>The firm's rules, people, and defaults. Change them yourself, no consultant required.</p></div>
+      </div>
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-head"><h2>Firm Profile</h2><button class="btn btn-ghost btn-sm" onclick="window.toastPortal('Editable in the full build')">Edit</button></div>
+          <div class="kv-grid">
+            <div class="kv"><div class="kv-label">Firm</div><div class="kv-value">The Dixon Injury Firm</div></div>
+            <div class="kv"><div class="kv-label">Phone</div><div class="kv-value">(314) 208-2808</div></div>
+            <div class="kv"><div class="kv-label">Main office</div><div class="kv-value">St. Louis, Missouri</div></div>
+            <div class="kv"><div class="kv-label">Client portal</div><div class="kv-value">portal.dixoninjuryfirm.com</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Team</h2><button class="btn btn-ghost btn-sm" id="inviteBtn">Invite</button></div>
+          <div class="check-list">
+            ${TEAM.map(m => `<div class="check-item no-click" style="cursor:default">
+              <div class="avatar" style="width:32px;height:32px;font-size:12px;${m.perm === "Admin" ? "" : "background:var(--ink)"}">${m.name.split(" ").map(w => w[0]).slice(0, 2).join("")}</div>
+              <div style="min-width:0"><div class="check-label">${m.name}</div><div class="td-sub">${m.role}</div></div>
+              <span class="perm-pill ${m.perm === "Admin" ? "perm-admin" : m.perm === "Intake only" ? "perm-lim" : ""}">${m.perm}</span>
+            </div>`).join("")}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Notifications</h2></div>
+          <div class="check-list">
+            ${PREFS.toggles.map((t, i) => `<div class="check-item no-click" style="cursor:default">
+              <div style="min-width:0"><div class="check-label">${t.label}</div><div class="td-sub">${t.sub}</div></div>
+              <button class="switch ${t.on ? "on" : ""}" data-pref="${i}" style="margin-left:auto" role="switch" aria-checked="${t.on}"><span class="knob"></span></button>
+            </div>`).join("")}
+          </div>
+          <div class="setting-selects">
+            <label>SOL first warning
+              <select data-prefsel="solMonths"><option>24 months out</option><option>18 months out</option><option>12 months out</option></select>
+            </label>
+            <label>Digest arrives at
+              <select data-prefsel="digestTime"><option>7:00 AM</option><option>6:30 AM</option><option>8:00 AM</option></select>
+            </label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Case Defaults</h2></div>
+          <div class="setting-selects" style="border-top:none;padding-top:16px">
+            <label>Standard fee
+              <select data-prefsel="feeStd"><option>33.3 percent</option><option>35 percent</option></select>
+            </label>
+            <label>After suit is filed
+              <select data-prefsel="feeLit"><option>40 percent in litigation</option><option>38 percent in litigation</option></select>
+            </label>
+            <label>Workers comp
+              <select data-prefsel="feeWC"><option>25 percent</option></select>
+            </label>
+          </div>
+          <div class="folder-pref">
+            <div class="kv-label" style="margin-bottom:8px">Drive folder set for every new case</div>
+            <div class="folder-chips">${FOLDER_TEMPLATE.map(f => `<span class="chip" style="cursor:default">${esc(f)}</span>`).join("")}</div>
+            <div class="custom-add" style="border-top:none;padding:12px 0 0">
+              <input type="text" id="newFolder" placeholder="Add a folder to the template">
+              <button class="btn btn-ghost btn-sm" id="addFolder">Add</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Integrations</h2></div>
+          <div class="check-list">
+            ${INTEGRATIONS.map(x => `<div class="check-item no-click" style="cursor:default">
+              <span class="int-dot" style="flex-shrink:0"></span>
+              <div style="min-width:0"><div class="check-label">${esc(x.name)}</div><div class="td-sub">${esc(x.status)}</div></div>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="window.toastPortal('Connection settings open in the full build')">Manage</button>
+            </div>`).join("")}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Data and Security</h2></div>
+          <div class="check-list">
+            <div class="check-item no-click" style="cursor:default">
+              <div style="min-width:0"><div class="check-label">Your data stays yours</div><div class="td-sub">Documents live in the firm's own Google Drive, cases export anytime</div></div>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto" id="exportCases">Export CSV</button>
+            </div>
+            <div class="check-item no-click" style="cursor:default">
+              <div style="min-width:0"><div class="check-label">Two-factor authentication</div><div class="td-sub">Required for every team member</div></div>
+              <button class="switch on" data-pref="sec" style="margin-left:auto" role="switch" aria-checked="true"><span class="knob"></span></button>
+            </div>
+            <div class="check-item no-click" style="cursor:default">
+              <div style="min-width:0"><div class="check-label">Audit trail</div><div class="td-sub">Every open, edit, and download is logged per user</div></div>
+              <span class="perm-pill" style="margin-left:auto">Always on</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function bindSettings() {
+    document.querySelectorAll(".switch[data-pref]").forEach(sw => {
+      sw.addEventListener("click", () => {
+        const i = sw.dataset.pref;
+        const isOn = !sw.classList.contains("on");
+        sw.classList.toggle("on", isOn);
+        sw.setAttribute("aria-checked", isOn);
+        if (PREFS.toggles[i]) { PREFS.toggles[i].on = isOn; toast(`"${PREFS.toggles[i].label}" ${isOn ? "on" : "off"}`); }
+        else toast(isOn ? "Two-factor required for everyone" : "Two-factor is required for admins regardless");
+      });
+    });
+    document.querySelectorAll("[data-prefsel]").forEach(sel => {
+      sel.value = PREFS[sel.dataset.prefsel] && [...sel.options].some(o => o.value === PREFS[sel.dataset.prefsel]) ? PREFS[sel.dataset.prefsel] : sel.value;
+      sel.addEventListener("change", () => { PREFS[sel.dataset.prefsel] = sel.value; toast("Saved: " + sel.value); });
+    });
+    const inv = $("#inviteBtn");
+    if (inv) inv.addEventListener("click", () => {
+      openModal(`
+        <div class="form-head"><h2>Invite a Team Member</h2><button class="icon-btn" data-close>${I.x}</button></div>
+        <div class="form-grid">
+          <label>Email<input id="inv-email" type="text" placeholder="name@dixoninjuryfirm.com"></label>
+          <label>Access<select id="inv-perm"><option>Full access</option><option>Intake only</option><option>Admin</option></select></label>
+        </div>
+        <div class="form-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="inv-send">Send Invite</button></div>`);
+      $("#inv-send").addEventListener("click", () => {
+        const em = $("#inv-email").value.trim();
+        closeModal();
+        toast(em ? "Invite sent to " + em : "Invite link copied");
+      });
+    });
+    const add = $("#addFolder");
+    if (add) add.addEventListener("click", () => {
+      const v = $("#newFolder").value.trim();
+      if (!v) return;
+      FOLDER_TEMPLATE.push(String(FOLDER_TEMPLATE.length + 1).padStart(2, "0") + " " + v);
+      refresh();
+      toast(`"${v}" added. New cases get this folder automatically`);
+    });
+    const exp = $("#exportCases");
+    if (exp) exp.addEventListener("click", () => {
+      const head = "Case,Client,Type,Stage,Insurer,Opened,EstValue,SOL";
+      const csv = [head, ...CASES.map(c => [c.num, c.client, c.type, c.stage, c.insurer, c.opened, c.estValue, c.sol].map(v => `"${v}"`).join(","))].join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      a.download = "dixon-cases.csv";
+      a.click();
+      toast("Exported " + CASES.length + " cases");
+    });
+  }
+
   /* ---------- contacts (add / edit / delete / export) ---------- */
 
   let contactQuery = "";
@@ -1407,6 +1574,7 @@
     else if (parts[0] === "reports") html = viewReports();
     else if (parts[0] === "automations") html = viewAutomations();
     else if (parts[0] === "contacts") html = viewContacts();
+    else if (parts[0] === "settings") html = viewSettings();
     else html = viewDashboard();
     const scroll = view.scrollTop;
     view.innerHTML = `<div class="${navigated ? "view-enter" : ""}">${html}</div>`;
@@ -1579,6 +1747,7 @@
     }
     if (parts[0] === "leads") bindLeads();
     if (parts[0] === "contacts") bindContacts();
+    if (parts[0] === "settings") bindSettings();
     if (parts[0] === "calendar") {
       const prev = $("#calPrev"), next = $("#calNext");
       if (prev) prev.addEventListener("click", () => { if (calMonth > 7) { calMonth--; refresh(); } });
