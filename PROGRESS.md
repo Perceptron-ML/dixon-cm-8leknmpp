@@ -138,11 +138,33 @@ lien negotiation history, referral fee tracking, document versioning.
 - Verified via scripted browser checks: trust card, ROI table, composer send,
   custom tab creation, drag-drop upload all pass; zero console errors.
 
+### Iteration 7 (2026-08-07) - settings, mobile, and the "make it all work" audit
+- Settings section (nav item): Firm Profile, Team, Integrations, Notifications
+  (working toggles + selects), Case Defaults (fees + Drive folder template),
+  Data and Security (real CSV export, 2FA toggle, audit line).
+- Build console FAB (bottom left): terminal-style panel, echoes requests and
+  queues them (mock by design).
+- My Tasks fix: row click opens the case, only the checkbox completes (with
+  Undo). Was completing on any click.
+- Full mobile pass (sub-560 stylesheet) verified at 375x812.
+- EVERYTHING-WORKS audit: generic formModal helper; now working in-memory:
+  firm profile edit, team edit/remove/invite (adds member), integration
+  manage modal with disconnect/reconnect (status propagates to Automations),
+  folder template add/remove with undo, case facts edit, case details edit
+  (insurer/adjuster/paralegal/value/SOL), add/edit medical providers, log
+  demand/offer/counter/settlement entries, update liens (feeds calculator),
+  add expenses, add checklist tasks, add calendar events (case-linked),
+  set custom tab field values, clickable dashboard stat cards.
+- Still mock BY DESIGN (needs real integrations): opening/downloading actual
+  Drive files, real email/text delivery, e-sign completion callback,
+  QuickBooks posting, build console execution.
+- All flows verified via scripted browser tests; zero console errors.
+
 ## Next candidates
-1. Mobile pass below 820px (topbar wrap, case tab scroll, table density).
-2. Signed-state transition demo (automation flips Awaiting to Signed).
-3. Calendar: include checklist due dates as auto events.
-4. Portal: messages thread synced with Comms texts.
+1. Signed-state transition demo (automation flips Awaiting to Signed).
+2. Calendar: include checklist due dates as auto events.
+3. Portal: messages thread synced with Comms texts.
+4. Editable notes (edit/delete existing notes).
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but

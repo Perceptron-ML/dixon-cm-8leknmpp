@@ -118,6 +118,28 @@
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModal));
   }
   function closeModal() { $("#modal").innerHTML = ""; }
+
+  /* generic small form modal: fields = [{id,label,value,type,options,ph,wide}] */
+  function formModal(title, fields, onSave, saveLabel) {
+    openModal(`
+      <div class="form-head"><h2>${esc(title)}</h2><button class="icon-btn" data-close>${I.x}</button></div>
+      <div class="form-grid">
+        ${fields.map(f => `<label ${f.wide ? 'style="grid-column:1/-1"' : ""}>${esc(f.label)}
+          ${f.type === "select" ? `<select id="fm-${f.id}">${f.options.map(o => `<option ${o === f.value ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`
+            : f.type === "textarea" ? `<textarea id="fm-${f.id}" rows="4">${esc(f.value || "")}</textarea>`
+            : `<input id="fm-${f.id}" type="text" value="${esc(f.value ?? "")}" placeholder="${esc(f.ph || "")}">`}
+        </label>`).join("")}
+      </div>
+      <div class="form-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="fm-save">${esc(saveLabel || "Save")}</button></div>`);
+    const first = $("#fm-" + fields[0].id);
+    if (first && !first.value) first.focus();
+    $("#fm-save").addEventListener("click", () => {
+      const vals = {};
+      fields.forEach(f => { vals[f.id] = $("#fm-" + f.id).value; });
+      closeModal();
+      onSave(vals);
+    });
+  }
   document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModal(); $("#searchResults") && $("#searchResults").classList.remove("open"); } });
 
   /* ---------- document viewer (the Drive overlay) ---------- */
@@ -558,11 +580,11 @@
       return `<div class="case-grid">
         <div class="dash-col">
           <div class="card">
-            <div class="card-head"><h2>Case Facts</h2></div>
+            <div class="card-head"><h2>Case Facts</h2><button class="btn btn-ghost btn-sm" onclick="editFacts('${c.id}')">Edit</button></div>
             <div class="facts">${esc(c.facts)}</div>
           </div>
           <div class="card">
-            <div class="card-head"><h2>Details</h2></div>
+            <div class="card-head"><h2>Details</h2><button class="btn btn-ghost btn-sm" onclick="editDetails('${c.id}')">Edit</button></div>
             <div class="kv-grid">
               ${(() => {
                 const monthsLeft = Math.round((new Date(c.sol) - new Date(TODAY)) / 2629800000);
@@ -627,10 +649,10 @@
       const lienStatus = { Asserted: "ms-received", Negotiating: "ms-requested", Reduced: "ms-complete" };
       return `<div class="dash-col">
         <div class="card">
-          <div class="card-head"><h2>Treatment and Records</h2><button class="btn btn-ghost btn-sm" onclick="reqRecords('${c.id}')">Request Records</button></div>
+          <div class="card-head"><h2>Treatment and Records</h2><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="addProvider('${c.id}')">Add Provider</button><button class="btn btn-ghost btn-sm" onclick="reqRecords('${c.id}')">Request Records</button></div></div>
           <div class="table-wrap"><table>
             <thead><tr><th>Provider</th><th>Records Status</th><th>Billed</th><th>Lien</th></tr></thead>
-            <tbody>${c.medicals.map(m => `<tr>
+            <tbody>${c.medicals.map((m, mi) => `<tr onclick="editProvider('${c.id}',${mi})" title="Click to update">
               <td class="td-main">${esc(m.provider)}</td>
               <td><span class="med-status ms-${m.status.toLowerCase()}">${m.status}</span></td>
               <td class="money">${money(m.billed)}</td>
@@ -643,7 +665,7 @@
           <div class="card-head"><h2>Lien Negotiation</h2><span class="drive-note">Feeds the settlement calculator automatically</span></div>
           <div class="table-wrap"><table>
             <thead><tr><th>Lienholder</th><th>Original</th><th>Current</th><th>Status</th><th>Latest</th></tr></thead>
-            <tbody>${c.lienLedger.map(l => `<tr>
+            <tbody>${c.lienLedger.map((l, li) => `<tr onclick="editLien('${c.id}',${li})" title="Click to log negotiation progress">
               <td class="td-main">${esc(l.holder)}</td>
               <td class="money ${l.current < l.original ? "strike" : ""}">${money(l.original)}</td>
               <td class="money" style="font-weight:600">${money(l.current)}</td>
@@ -661,7 +683,7 @@
       const gross = bestOffer || c.estValue;
       return `<div class="case-grid">
         <div class="card">
-          <div class="card-head"><h2>Demand and Offer History</h2><button class="btn btn-ghost btn-sm" onclick="aiDemand('${c.id}')">AI Demand Draft</button></div>
+          <div class="card-head"><h2>Demand and Offer History</h2><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="logNegotiation('${c.id}')">Log Entry</button><button class="btn btn-ghost btn-sm" onclick="aiDemand('${c.id}')">AI Demand Draft</button></div></div>
           ${c.negotiation.length ? c.negotiation.map(n => `<div class="neg-item">
             <div class="neg-amount money">${money(n.amount)}</div>
             <div><div class="neg-kind ${n.kind.toLowerCase()}">${n.kind} · ${esc(n.party)}</div><div class="neg-note">${esc(n.note)}</div></div>
@@ -685,7 +707,7 @@
 
     if (tab === "checklist") {
       return `<div class="card">
-        <div class="card-head"><h2>Case Checklist</h2><span class="drive-note">Click an item to complete it</span></div>
+        <div class="card-head"><h2>Case Checklist</h2><div style="display:flex;align-items:center;gap:12px"><span class="drive-note">Click an item to complete it</span><button class="btn btn-ghost btn-sm" onclick="addTask('${c.id}')">Add Task</button></div></div>
         <div class="check-list">
           ${c.checklist.map((k, i) => `<div class="check-item ${k.done ? "done" : ""} clickable" data-check="${i}" data-case="${c.id}">
             <span class="check-box">${k.done ? I.check : ""}</span>
@@ -734,7 +756,7 @@
     if (tab === "expenses") {
       const total = c.expenses.reduce((s, e) => s + e.amount, 0);
       return `<div class="card">
-        <div class="card-head"><h2>Case Expenses</h2><span class="drive-note">Synced to QuickBooks Online</span></div>
+        <div class="card-head"><h2>Case Expenses</h2><div style="display:flex;align-items:center;gap:12px"><span class="drive-note">Synced to QuickBooks Online</span><button class="btn btn-ghost btn-sm" onclick="addExpense('${c.id}')">Add Expense</button></div></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
           <tbody>${c.expenses.slice().sort((a, b) => a.date.localeCompare(b.date)).map(e => `<tr class="no-click">
@@ -762,7 +784,7 @@
       return `<div class="card">
         <div class="card-head"><h2>${esc(custom.label)}</h2><span class="drive-note">Custom tab on every ${esc(c.type)} case</span></div>
         <div class="kv-grid">
-          ${custom.fields.map(f => `<div class="kv"><div class="kv-label">${esc(f.label)}</div><div class="kv-value" style="color:${f.value ? "inherit" : "var(--faint)"}">${esc(f.value || "Not set")}</div></div>`).join("")}
+          ${custom.fields.map((f, fi) => `<div class="kv kv-edit" onclick="setCustomField('${c.type}','${custom.key}',${fi})" title="Click to set"><div class="kv-label">${esc(f.label)}</div><div class="kv-value" style="color:${f.value ? "inherit" : "var(--faint)"}">${esc(f.value || "Click to set")}</div></div>`).join("")}
         </div>
         <div class="custom-add">
           <input type="text" id="cf-label" placeholder="New field name">
@@ -805,6 +827,13 @@
       toast(`"${label}" added to every ${c.type} case`);
       location.hash = `#/case/${c.id}/${key}`;
     });
+  };
+
+  window.setCustomField = function (type, key, fi) {
+    const tabDef = (CUSTOM_TABS[type] || []).find(t => t.key === key);
+    const f = tabDef.fields[fi];
+    formModal(f.label, [{ id: "value", label: "Value", value: f.value, wide: true }],
+      v => { f.value = v.value.trim(); refresh(); toast("Saved"); });
   };
 
   window.addCustomField = function (type, key, id) {
@@ -850,6 +879,128 @@
       refresh();
       toast("Sent through Outlook and logged to the file");
     });
+  };
+
+  window.editFacts = function (id) {
+    const c = caseById(id);
+    formModal("Edit Case Facts", [{ id: "facts", label: "Facts", type: "textarea", value: c.facts, wide: true }],
+      v => { c.facts = v.facts.trim() || c.facts; refresh(); toast("Case facts updated"); });
+  };
+
+  window.editDetails = function (id) {
+    const c = caseById(id);
+    formModal("Edit Case Details", [
+      { id: "insurer", label: "Insurer", value: c.insurer },
+      { id: "claimNo", label: "Claim number", value: c.claimNo },
+      { id: "adjuster", label: "Adjuster", value: c.adjuster },
+      { id: "paralegal", label: "Paralegal", type: "select", options: ["Dana Ellis", "Renee Carter"], value: c.paralegal },
+      { id: "phone", label: "Client phone", value: c.phone },
+      { id: "email", label: "Client email", value: c.email },
+      { id: "estValue", label: "Estimated value", value: c.estValue.toLocaleString("en-US") },
+      { id: "sol", label: "Statute of limitations (YYYY-MM-DD)", value: c.sol }
+    ], v => {
+      Object.assign(c, { insurer: v.insurer, claimNo: v.claimNo, adjuster: v.adjuster, paralegal: v.paralegal, phone: v.phone, email: v.email });
+      const ev = parseInt(v.estValue.replace(/[^0-9]/g, ""), 10);
+      if (ev) c.estValue = ev;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v.sol.trim())) c.sol = v.sol.trim();
+      refresh();
+      toast("Case details updated");
+    });
+  };
+
+  window.addProvider = function (id) {
+    const c = caseById(id);
+    formModal("Add Provider", [
+      { id: "provider", label: "Provider", ph: "Facility or physician" },
+      { id: "status", label: "Records status", type: "select", options: ["Requested", "Received", "Complete"], value: "Requested" },
+      { id: "billed", label: "Billed to date", ph: "0" },
+      { id: "lien", label: "Lien asserted", ph: "0" }
+    ], v => {
+      if (!v.provider.trim()) return;
+      const billed = parseInt(v.billed.replace(/[^0-9]/g, ""), 10) || 0;
+      const lien = parseInt(v.lien.replace(/[^0-9]/g, ""), 10) || 0;
+      c.medicals.push({ provider: v.provider.trim(), status: v.status, billed, lien });
+      if (lien) c.lienLedger.push({ holder: v.provider.trim(), original: lien, current: lien, status: "Asserted", note: "Lien letter on file", date: TODAY });
+      refresh();
+      toast(v.provider.trim() + " added. Records request queued");
+    }, "Add Provider");
+  };
+
+  window.editProvider = function (id, idx) {
+    const c = caseById(id);
+    const m = c.medicals[idx];
+    formModal("Edit " + m.provider, [
+      { id: "status", label: "Records status", type: "select", options: ["Requested", "Received", "Complete"], value: m.status },
+      { id: "billed", label: "Billed", value: m.billed.toLocaleString("en-US") },
+      { id: "lien", label: "Lien", value: m.lien.toLocaleString("en-US") }
+    ], v => {
+      m.status = v.status;
+      m.billed = parseInt(v.billed.replace(/[^0-9]/g, ""), 10) || 0;
+      m.lien = parseInt(v.lien.replace(/[^0-9]/g, ""), 10) || 0;
+      refresh();
+      toast(m.provider + " updated");
+    });
+  };
+
+  window.logNegotiation = function (id) {
+    const c = caseById(id);
+    formModal("Log Demand or Offer", [
+      { id: "kind", label: "Type", type: "select", options: ["Demand", "Offer", "Counter", "Settlement"], value: "Offer" },
+      { id: "party", label: "From", type: "select", options: ["Firm", c.insurer.split(" (")[0], "Both"], value: c.insurer.split(" (")[0] },
+      { id: "amount", label: "Amount", ph: "125,000" },
+      { id: "note", label: "Note", type: "textarea", value: "", wide: true }
+    ], v => {
+      const amount = parseInt(v.amount.replace(/[^0-9]/g, ""), 10);
+      if (!amount) return;
+      c.negotiation.push({ date: TODAY, party: v.party, kind: v.kind, amount, note: v.note.trim() || v.kind + " logged" });
+      logActivity(`${v.kind} of ${money(amount)} logged on ${c.client}`);
+      refresh();
+      toast(`${v.kind} of ${money(amount)} logged${v.kind === "Offer" ? ". Response task created" : ""}`);
+    }, "Log It");
+  };
+
+  window.editLien = function (id, idx) {
+    const c = caseById(id);
+    const l = c.lienLedger[idx];
+    formModal("Update Lien: " + l.holder, [
+      { id: "current", label: "Current amount", value: l.current.toLocaleString("en-US") },
+      { id: "status", label: "Status", type: "select", options: ["Asserted", "Negotiating", "Reduced"], value: l.status },
+      { id: "note", label: "Latest note", type: "textarea", value: l.note, wide: true }
+    ], v => {
+      l.current = parseInt(v.current.replace(/[^0-9]/g, ""), 10) || l.current;
+      l.status = v.status;
+      l.note = v.note.trim() || l.note;
+      l.date = TODAY;
+      refresh();
+      toast(l.current < l.original ? `${money(l.original - l.current)} negotiated off ${l.holder}` : l.holder + " updated");
+    });
+  };
+
+  window.addExpense = function (id) {
+    const c = caseById(id);
+    formModal("Add Expense", [
+      { id: "desc", label: "Description", ph: "Certified records, filing fee, expert" },
+      { id: "amount", label: "Amount", ph: "45" }
+    ], v => {
+      const amount = parseInt(v.amount.replace(/[^0-9]/g, ""), 10);
+      if (!v.desc.trim() || !amount) return;
+      c.expenses.push({ date: TODAY, desc: v.desc.trim(), amount });
+      refresh();
+      toast("Expense logged and synced to QuickBooks");
+    }, "Add Expense");
+  };
+
+  window.addTask = function (id) {
+    const c = caseById(id);
+    formModal("Add Task", [
+      { id: "label", label: "Task", ph: "What needs to happen" },
+      { id: "due", label: "Due (YYYY-MM-DD)", ph: "2026-08-21" }
+    ], v => {
+      if (!v.label.trim()) return;
+      c.checklist.push({ label: v.label.trim(), done: false, due: /^\d{4}-\d{2}-\d{2}$/.test(v.due.trim()) ? v.due.trim() : undefined });
+      refresh();
+      toast("Task added to the checklist");
+    }, "Add Task");
   };
 
   window.reqRecords = function (id) {
@@ -1103,6 +1254,7 @@
           <button class="icon-btn" id="calPrev" ${calMonth <= 7 ? "disabled" : ""}>${S}<path d="m15 18-6-6 6-6"/></svg></button>
           <span class="cal-month">${monthName}</span>
           <button class="icon-btn" id="calNext" ${calMonth >= 9 ? "disabled" : ""}>${S}<path d="m9 18 6-6-6-6"/></svg></button>
+          <button class="btn btn-primary" onclick="addEvent()">New Event</button>
         </div>
       </div>
       <div class="card cal-card">
@@ -1122,6 +1274,22 @@
         </div>
       </div>`;
   }
+
+  window.addEvent = function () {
+    formModal("New Event", [
+      { id: "title", label: "Title", ph: "Deposition, call, mediation" },
+      { id: "date", label: "Date (YYYY-MM-DD)", ph: "2026-08-20" },
+      { id: "time", label: "Time", ph: "10:00 AM or All day", value: "All day" },
+      { id: "kind", label: "Type", type: "select", options: ["Call", "Meeting", "Deadline", "Deposition", "Mediation", "Consult", "Internal", "Exam"], value: "Meeting" },
+      { id: "client", label: "Case", type: "select", options: ["None", ...CASES.map(x => x.client)], value: "None", wide: true }
+    ], v => {
+      if (!v.title.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(v.date.trim())) { toast("Needs a title and a date like 2026-08-20"); return; }
+      const linked = CASES.find(x => x.client === v.client);
+      EVENTS.push({ date: v.date.trim(), time: v.time.trim() || "All day", title: (linked ? linked.client.split(" ").slice(-1)[0] + ": " : "") + v.title.trim(), kind: v.kind, caseId: linked ? linked.id : null });
+      refresh();
+      toast("Added to the calendar and synced to Outlook");
+    }, "Add Event");
+  };
 
   /* ---------- reports ---------- */
 
@@ -1198,11 +1366,11 @@
   ];
 
   const INTEGRATIONS = [
-    { name: "Google Drive", status: "Connected · synced 2 min ago" },
-    { name: "Outlook 365", status: "Connected · 41 emails filed this week" },
-    { name: "QuickBooks Online", status: "Connected · expenses syncing" },
-    { name: "Website Chat", status: "Connected · 4 leads this week" },
-    { name: "E-Signature", status: "Connected · 2 retainers out" }
+    { name: "Google Drive", status: "Connected · synced 2 min ago", on: true },
+    { name: "Outlook 365", status: "Connected · 41 emails filed this week", on: true },
+    { name: "QuickBooks Online", status: "Connected · expenses syncing", on: true },
+    { name: "Website Chat", status: "Connected · 4 leads this week", on: true },
+    { name: "E-Signature", status: "Connected · 2 retainers out", on: true }
   ];
 
   function viewAutomations() {
@@ -1211,7 +1379,7 @@
         <div class="page-title"><h1>Automations</h1><p>The firm's workflows, running on their own. Flip any of them off if you want the manual version back.</p></div>
       </div>
       <div class="integrations">
-        ${INTEGRATIONS.map(x => `<div class="integration"><span class="int-dot"></span><div><div class="int-name">${esc(x.name)}</div><div class="int-status">${esc(x.status)}</div></div></div>`).join("")}
+        ${INTEGRATIONS.map(x => `<div class="integration"><span class="int-dot ${x.on ? "" : "off"}"></span><div><div class="int-name">${esc(x.name)}</div><div class="int-status">${esc(x.on ? x.status : "Disconnected")}</div></div></div>`).join("")}
       </div>
       <div class="auto-grid">
         ${AUTOMATIONS.map((a, i) => `<div class="card auto-card">
@@ -1246,31 +1414,50 @@
     { name: "Intake Line", role: "After-hours intake service", perm: "Intake only" }
   ];
 
+  const FIRM = { name: "The Dixon Injury Firm", phone: "(314) 208-2808", office: "St. Louis, Missouri", portal: "portal.dixoninjuryfirm.com" };
+
   function viewSettings() {
     return `
       <div class="page-head">
         <div class="page-title"><h1>Settings</h1><p>The firm's rules, people, and defaults. Change them yourself, no consultant required.</p></div>
       </div>
       <div class="settings-grid">
+        <div class="set-col">
         <div class="card">
-          <div class="card-head"><h2>Firm Profile</h2><button class="btn btn-ghost btn-sm" onclick="window.toastPortal('Editable in the full build')">Edit</button></div>
+          <div class="card-head"><h2>Firm Profile</h2><button class="btn btn-ghost btn-sm" id="editFirm">Edit</button></div>
           <div class="kv-grid">
-            <div class="kv"><div class="kv-label">Firm</div><div class="kv-value">The Dixon Injury Firm</div></div>
-            <div class="kv"><div class="kv-label">Phone</div><div class="kv-value">(314) 208-2808</div></div>
-            <div class="kv"><div class="kv-label">Main office</div><div class="kv-value">St. Louis, Missouri</div></div>
-            <div class="kv"><div class="kv-label">Client portal</div><div class="kv-value">portal.dixoninjuryfirm.com</div></div>
+            <div class="kv"><div class="kv-label">Firm</div><div class="kv-value">${esc(FIRM.name)}</div></div>
+            <div class="kv"><div class="kv-label">Phone</div><div class="kv-value">${esc(FIRM.phone)}</div></div>
+            <div class="kv"><div class="kv-label">Main office</div><div class="kv-value">${esc(FIRM.office)}</div></div>
+            <div class="kv"><div class="kv-label">Client portal</div><div class="kv-value">${esc(FIRM.portal)}</div></div>
           </div>
         </div>
         <div class="card">
           <div class="card-head"><h2>Team</h2><button class="btn btn-ghost btn-sm" id="inviteBtn">Invite</button></div>
           <div class="check-list">
-            ${TEAM.map(m => `<div class="check-item no-click" style="cursor:default">
+            ${TEAM.map((m, i) => `<div class="check-item no-click team-row" style="cursor:default">
               <div class="avatar" style="width:32px;height:32px;font-size:12px;${m.perm === "Admin" ? "" : "background:var(--ink)"}">${m.name.split(" ").map(w => w[0]).slice(0, 2).join("")}</div>
-              <div style="min-width:0"><div class="check-label">${m.name}</div><div class="td-sub">${m.role}</div></div>
-              <span class="perm-pill ${m.perm === "Admin" ? "perm-admin" : m.perm === "Intake only" ? "perm-lim" : ""}">${m.perm}</span>
+              <div style="min-width:0"><div class="check-label">${esc(m.name)}</div><div class="td-sub">${esc(m.role)}</div></div>
+              <span class="perm-pill ${m.perm === "Admin" ? "perm-admin" : m.perm === "Intake only" ? "perm-lim" : ""}">${esc(m.perm)}</span>
+              <div class="row-actions" style="margin-left:8px">
+                <button class="mini-btn" data-teamedit="${i}" title="Edit">${I.edit}</button>
+                ${m.perm !== "Admin" ? `<button class="mini-btn danger" data-teamdel="${i}" title="Remove">${I.trash}</button>` : ""}
+              </div>
             </div>`).join("")}
           </div>
         </div>
+        <div class="card">
+          <div class="card-head"><h2>Integrations</h2></div>
+          <div class="check-list">
+            ${INTEGRATIONS.map((x, i) => `<div class="check-item no-click" style="cursor:default">
+              <span class="int-dot ${x.on ? "" : "off"}" style="flex-shrink:0"></span>
+              <div style="min-width:0"><div class="check-label">${esc(x.name)}</div><div class="td-sub">${esc(x.on ? x.status : "Disconnected")}</div></div>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto" data-manage="${i}">Manage</button>
+            </div>`).join("")}
+          </div>
+        </div>
+        </div>
+        <div class="set-col">
         <div class="card">
           <div class="card-head"><h2>Notifications</h2></div>
           <div class="check-list">
@@ -1303,21 +1490,11 @@
           </div>
           <div class="folder-pref">
             <div class="kv-label" style="margin-bottom:8px">Drive folder set for every new case</div>
-            <div class="folder-chips">${FOLDER_TEMPLATE.map(f => `<span class="chip" style="cursor:default">${esc(f)}</span>`).join("")}</div>
+            <div class="folder-chips">${FOLDER_TEMPLATE.map((f, i) => `<span class="chip folder-chip">${esc(f)}<button class="chip-x" data-folderdel="${i}" title="Remove">×</button></span>`).join("")}</div>
             <div class="custom-add" style="border-top:none;padding:12px 0 0">
               <input type="text" id="newFolder" placeholder="Add a folder to the template">
               <button class="btn btn-ghost btn-sm" id="addFolder">Add</button>
             </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h2>Integrations</h2></div>
-          <div class="check-list">
-            ${INTEGRATIONS.map(x => `<div class="check-item no-click" style="cursor:default">
-              <span class="int-dot" style="flex-shrink:0"></span>
-              <div style="min-width:0"><div class="check-label">${esc(x.name)}</div><div class="td-sub">${esc(x.status)}</div></div>
-              <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="window.toastPortal('Connection settings open in the full build')">Manage</button>
-            </div>`).join("")}
           </div>
         </div>
         <div class="card">
@@ -1337,6 +1514,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>`;
   }
 
@@ -1355,21 +1533,70 @@
       sel.value = PREFS[sel.dataset.prefsel] && [...sel.options].some(o => o.value === PREFS[sel.dataset.prefsel]) ? PREFS[sel.dataset.prefsel] : sel.value;
       sel.addEventListener("change", () => { PREFS[sel.dataset.prefsel] = sel.value; toast("Saved: " + sel.value); });
     });
+    const ef = $("#editFirm");
+    if (ef) ef.addEventListener("click", () => formModal("Edit Firm Profile", [
+      { id: "name", label: "Firm name", value: FIRM.name },
+      { id: "phone", label: "Phone", value: FIRM.phone },
+      { id: "office", label: "Main office", value: FIRM.office },
+      { id: "portal", label: "Client portal domain", value: FIRM.portal }
+    ], v => { Object.assign(FIRM, { name: v.name, phone: v.phone, office: v.office, portal: v.portal }); refresh(); toast("Firm profile updated"); }));
+
     const inv = $("#inviteBtn");
-    if (inv) inv.addEventListener("click", () => {
+    if (inv) inv.addEventListener("click", () => formModal("Invite a Team Member", [
+      { id: "email", label: "Email", ph: "name@dixoninjuryfirm.com" },
+      { id: "perm", label: "Access", type: "select", options: ["Full access", "Intake only", "Admin"], value: "Full access" }
+    ], v => {
+      const em = v.email.trim();
+      if (em) {
+        const nm = em.split("@")[0].split(/[._]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        TEAM.push({ name: nm, role: "Invited · pending first sign-in", perm: v.perm });
+        refresh();
+      }
+      toast(em ? "Invite sent to " + em : "Invite link copied");
+    }, "Send Invite"));
+
+    document.querySelectorAll("[data-teamedit]").forEach(b => b.addEventListener("click", () => {
+      const m = TEAM[+b.dataset.teamedit];
+      formModal("Edit " + m.name, [
+        { id: "name", label: "Name", value: m.name },
+        { id: "role", label: "Role", value: m.role },
+        { id: "perm", label: "Access", type: "select", options: ["Admin", "Full access", "Intake only"], value: m.perm }
+      ], v => { Object.assign(m, { name: v.name, role: v.role, perm: v.perm }); refresh(); toast(m.name + " updated"); });
+    }));
+    document.querySelectorAll("[data-teamdel]").forEach(b => b.addEventListener("click", () => {
+      const i = +b.dataset.teamdel;
+      const removed = TEAM.splice(i, 1)[0];
+      refresh();
+      toast(removed.name + " removed from the team", { undo: () => { TEAM.splice(i, 0, removed); refresh(); } });
+    }));
+
+    document.querySelectorAll("[data-manage]").forEach(b => b.addEventListener("click", () => {
+      const x = INTEGRATIONS[+b.dataset.manage];
       openModal(`
-        <div class="form-head"><h2>Invite a Team Member</h2><button class="icon-btn" data-close>${I.x}</button></div>
-        <div class="form-grid">
-          <label>Email<input id="inv-email" type="text" placeholder="name@dixoninjuryfirm.com"></label>
-          <label>Access<select id="inv-perm"><option>Full access</option><option>Intake only</option><option>Admin</option></select></label>
+        <div class="form-head"><h2>${esc(x.name)}</h2><button class="icon-btn" data-close>${I.x}</button></div>
+        <div class="check-list">
+          <div class="check-item no-click"><div style="min-width:0"><div class="check-label">Status</div><div class="td-sub">${esc(x.on ? x.status : "Disconnected")}</div></div><span class="int-dot ${x.on ? "" : "off"}" style="margin-left:auto"></span></div>
+          <div class="check-item no-click"><div style="min-width:0"><div class="check-label">Connected as</div><div class="td-sub">chris@dixoninjuryfirm.com</div></div></div>
+          <div class="check-item no-click"><div style="min-width:0"><div class="check-label">Scope</div><div class="td-sub">${x.name === "Google Drive" ? "Clients folder only, read and write" : x.name === "Outlook 365" ? "Mail read, send, and calendar" : "Standard API access"}</div></div></div>
         </div>
-        <div class="form-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="inv-send">Send Invite</button></div>`);
-      $("#inv-send").addEventListener("click", () => {
-        const em = $("#inv-email").value.trim();
+        <div class="form-foot">
+          <button class="btn btn-ghost" data-close>Close</button>
+          <button class="btn ${x.on ? "btn-ghost" : "btn-primary"}" id="int-toggle" ${x.on ? 'style="color:var(--red);border-color:var(--red)"' : ""}>${x.on ? "Disconnect" : "Reconnect"}</button>
+        </div>`);
+      $("#int-toggle").addEventListener("click", () => {
+        x.on = !x.on;
         closeModal();
-        toast(em ? "Invite sent to " + em : "Invite link copied");
+        refresh();
+        toast(x.name + (x.on ? " reconnected" : " disconnected"), x.on ? {} : { undo: () => { x.on = true; refresh(); } });
       });
-    });
+    }));
+
+    document.querySelectorAll("[data-folderdel]").forEach(b => b.addEventListener("click", () => {
+      const i = +b.dataset.folderdel;
+      const removed = FOLDER_TEMPLATE.splice(i, 1)[0];
+      refresh();
+      toast(`"${removed}" removed from the template`, { undo: () => { FOLDER_TEMPLATE.splice(i, 0, removed); refresh(); } });
+    }));
     const add = $("#addFolder");
     if (add) add.addEventListener("click", () => {
       const v = $("#newFolder").value.trim();
