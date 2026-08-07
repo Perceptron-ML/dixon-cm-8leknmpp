@@ -151,6 +151,67 @@
     $("#dlDoc").addEventListener("click", () => toast("Downloading " + d.name));
   };
 
+  /* ---------- client portal (what the client sees on their phone) ---------- */
+
+  const PORTAL_COPY = {
+    "Intake": ["Case opened", "We opened your file and gathered the basics."],
+    "Investigation": ["Building your case", "We are collecting reports, footage, and evidence."],
+    "Treating": ["Focus on getting better", "Keep every appointment. We track the records and bills."],
+    "Demand Prep": ["Preparing your demand", "We are assembling your full demand package."],
+    "Negotiation": ["Negotiating for you", "We are negotiating with the insurance company."],
+    "Litigation": ["Your case is in court", "We filed suit and are pushing your case forward."],
+    "Settled": ["Settlement complete", "Your case is resolved. Thank you for trusting us."]
+  };
+
+  window.openPortal = function (id) {
+    const c = caseById(id);
+    const stageIdx = STAGES.indexOf(c.stage);
+    const first = c.client.split(" ")[0];
+    const nextEvt = EVENTS.find(e => e.caseId === c.id && e.date >= TODAY);
+    openModal(`
+      <div class="portal">
+        <div class="portal-note">This is what ${esc(first)} sees at <strong>portal.dixoninjuryfirm.com</strong>, updated automatically from the file. <button class="icon-btn" data-close style="margin-left:auto">${I.x}</button></div>
+        <div class="phone">
+          <div class="portal-head">
+            <img src="assets/logo.png" alt="The Dixon Injury Firm">
+            <div class="portal-case">Your case · ${c.num}</div>
+          </div>
+          <div class="portal-body">
+            <h3 class="portal-hi">Hi ${esc(first)}</h3>
+            <div class="portal-sub">Here is exactly where your case stands.</div>
+            <div class="tracker">
+              ${STAGES.map((st, i) => {
+                const [title, blurb] = PORTAL_COPY[st];
+                const state = i < stageIdx ? "done" : i === stageIdx ? "now" : "todo";
+                return `<div class="tk ${state}">
+                  <div class="tk-rail"><span class="tk-dot">${i < stageIdx ? I.check : ""}</span>${i < STAGES.length - 1 ? '<span class="tk-line"></span>' : ""}</div>
+                  <div class="tk-body">
+                    <div class="tk-title">${title}${state === "now" ? '<span class="tk-here">You are here</span>' : ""}</div>
+                    ${state === "now" ? `<div class="tk-blurb">${blurb}</div>` : ""}
+                  </div>
+                </div>`;
+              }).join("")}
+            </div>
+            ${nextEvt ? `<div class="portal-card">
+              <div class="portal-card-label">Coming up</div>
+              <div class="portal-card-main">${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(nextEvt.title.split(": ")[1] || nextEvt.title))}</div>
+              <div class="portal-card-sub">${fmtDate(nextEvt.date)}${nextEvt.time !== "All day" ? " · " + esc(nextEvt.time) : ""}</div>
+            </div>` : ""}
+            <div class="portal-card">
+              <div class="portal-card-label">Your team</div>
+              <div class="portal-card-main">${esc(c.paralegal)} and Chris Dixon</div>
+              <div class="portal-card-sub">Questions? Text us anytime, we reply fast.</div>
+            </div>
+            <div class="portal-actions">
+              <button class="btn btn-primary" onclick="toastPortal('Message thread opens, texts land in the case file')">Message us</button>
+              <button class="btn btn-ghost" onclick="toastPortal('Photos and documents upload straight to the case Drive folder')">Upload a document</button>
+            </div>
+          </div>
+        </div>
+      </div>`, true);
+  };
+  window.toastPortal = msg => toast(msg);
+
   /* ---------- shell ---------- */
 
   function renderNav(active) {
@@ -372,6 +433,7 @@
             </div>
           </div>
           <div class="case-actions">
+            <button class="btn btn-ghost" onclick="openPortal('${c.id}')">Client View</button>
             <button class="btn btn-ghost" onclick="genDoc('${c.id}')">Generate Document</button>
             <button class="btn btn-primary" onclick="addNote('${c.id}')">Log Activity</button>
           </div>

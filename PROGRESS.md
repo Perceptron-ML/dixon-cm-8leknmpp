@@ -96,11 +96,18 @@ lien negotiation history, referral fee tracking, document versioning.
   can't write into Drive (we show generated docs filing straight to Drive).
 - Pitch math: 10 users on Neos-class = ~$12-23k/yr forever.
 
+### Iteration 4 (2026-08-07)
+- Client portal preview: "Client View" button on every case opens a phone-framed
+  mock of portal.dixoninjuryfirm.com: firm-branded header, "Hi <first name>",
+  vertical package-tracker with green checks and a YOU ARE HERE chip and
+  client-friendly copy per stage, Coming Up card (next event from the calendar),
+  Your Team card, Message us / Upload buttons. Also: glitch-free in-place
+  updates (route vs refresh split), automations toggle purely in-place,
+  documents feed lazy loads 15+20 with clickable sentinel, cache-busted assets
+  (bump ?v= on each deploy).
+
 ## Next candidates (ranked, informed by PI research report 4)
-1. Client portal mock: a "View as client" page per case, package-tracker stage
-   bar + messages + upload (Case Status pattern). Cuts "any update?" calls,
-   big demo moment for Chris.
-2. Lien negotiation ledger: per-lien history (original, offers, final reduced)
+1. Lien negotiation ledger: per-lien history (original, offers, final reduced)
    feeding the settlement calculator automatically.
 3. Litify-style saved settlement scenarios: save 2-3 calculator states and
    compare side by side.
