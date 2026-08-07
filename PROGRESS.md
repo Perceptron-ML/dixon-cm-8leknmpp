@@ -116,12 +116,22 @@ lien negotiation history, referral fee tracking, document versioning.
 - Saved scenarios: Save Scenario chips ("$125,000 nets $64,496"), click to
   reload, x to remove, keeps last 4 (Litify compare pattern).
 
-## Next candidates (ranked, informed by PI research report 4)
-1. Drive two-way: "Upload to folder" drop zone in case Documents; document
-   versioning row states.
-2. Reports: referral-source ROI + print stylesheet for Export PDF.
-3. Command-K palette / keyboard shortcuts; mobile pass below 820px.
-4. Portal link in the automations story (portal updates as a recipe card).
+## Next candidates (ranked 2026-08-07 PM, from the "never open Drive again" audit)
+1. Upload into the file: drag-and-drop / Upload button on case Documents that
+   files a doc to the selected folder with AI summary + NEW badge (mock).
+2. Compose from the case: Reply/New Email buttons on Comms that open a composer
+   and log the sent mail to the file (retires Outlook for case mail).
+3. My Tasks queue: per-person view (Dana, Renee, Chris) of open tasks across
+   all cases sorted by due date; switcher in the sidebar user chip.
+4. E-sign send flow: "Send for signature" from Generate Document, with a
+   pending-signature state on the doc row.
+5. Trust ledger view on Settlements: settled funds in trust, waiting on lien
+   payoffs, ready to disburse.
+6. "Customize layout" mock (Neos Dynamic Layouts pattern): add-a-field /
+   add-a-tab panel to close the "fully customizable" ask.
+7. Document versioning row states; edit-in-place mock (embed story: Google Docs
+   editor in production).
+8. Reports referral ROI + print stylesheet; command-K palette; mobile pass.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but
