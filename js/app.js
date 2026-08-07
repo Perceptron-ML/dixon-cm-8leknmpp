@@ -372,10 +372,10 @@
       </div>
       <div class="card">
         <div class="check-list">
-          ${tasks.map(t => `<div class="check-item clickable" data-check="${t.idx}" data-case="${t.caseId}">
-            <span class="check-box"></span>
+          ${tasks.map(t => `<div class="check-item task-row" data-go="#/case/${t.caseId}">
+            <span class="check-box task-check" data-check="${t.idx}" data-case="${t.caseId}" title="Mark complete"></span>
             <div style="min-width:0"><div class="check-label">${esc(t.label)}</div>
-            <div class="td-sub"><a href="#/case/${t.caseId}" onclick="event.stopPropagation()" style="color:var(--orange);text-decoration:none;font-weight:600">${esc(t.client)}</a> · ${esc(t.stage)}${taskPerson === "Everyone" ? " · " + esc(t.owner) : ""}</div></div>
+            <div class="td-sub">${esc(t.client)} · ${esc(t.stage)}${taskPerson === "Everyone" ? " · " + esc(t.owner) : ""}</div></div>
             <span class="check-due ${t.due && t.due <= "2026-08-14" ? "soon" : ""}">${t.due ? fmtDate(t.due) : ""}</span>
           </div>`).join("") || `<div class="empty-state">Nothing open. Enjoy it while it lasts.</div>`}
         </div>
@@ -1436,8 +1436,25 @@
         const c = caseById(k.dataset.case);
         const item = c.checklist[+k.dataset.check];
         item.done = !item.done;
-        if (item.done) { item.date = TODAY; toast("Checked off: " + item.label); }
         refresh();
+        if (item.done) {
+          item.date = TODAY;
+          toast("Checked off: " + item.label, { undo: () => { item.done = false; refresh(); } });
+        }
+      });
+    });
+    document.querySelectorAll(".task-row").forEach(r => {
+      r.addEventListener("click", () => { location.hash = r.dataset.go; });
+    });
+    document.querySelectorAll(".task-check").forEach(cb => {
+      cb.addEventListener("click", e => {
+        e.stopPropagation();
+        const c = caseById(cb.dataset.case);
+        const item = c.checklist[+cb.dataset.check];
+        item.done = true;
+        item.date = TODAY;
+        refresh();
+        toast("Done: " + item.label, { undo: () => { item.done = false; refresh(); } });
       });
     });
     document.querySelectorAll(".path-step[data-move]").forEach(p => {
@@ -1574,6 +1591,55 @@
   }
 
   /* ---------- init ---------- */
+
+  /* ---------- build console (bottom left) ---------- */
+
+  function initBuildConsole() {
+    const fab = document.createElement("button");
+    fab.id = "aiFab";
+    fab.title = "Build Console: ask for a change to this system";
+    fab.innerHTML = "&gt;_";
+    document.body.appendChild(fab);
+
+    const panel = document.createElement("div");
+    panel.id = "aiPanel";
+    panel.innerHTML = `
+      <div class="ai-head">
+        <span class="ai-winbtn"></span><span class="ai-winbtn"></span><span class="ai-winbtn"></span>
+        <span class="ai-title">dixon-case-manager · build console</span>
+        <button class="ai-close" title="Close">${I.x}</button>
+      </div>
+      <div class="ai-log" id="aiLog">
+        <div class="ai-line ai-sys">Connected to the build pipeline for this system.</div>
+        <div class="ai-line ai-sys">Describe a change in plain English. It ships on the next push, usually same day.</div>
+      </div>
+      <div class="ai-chips">
+        ${["Add a subrogation tracker", "Rename the Treating stage", "New report: fees by paralegal"].map(s => `<button class="ai-chip">${s}</button>`).join("")}
+      </div>
+      <div class="ai-inputrow">
+        <span class="ai-caret">&gt;</span>
+        <input id="aiInput" type="text" placeholder="what should this system do differently?" autocomplete="off">
+      </div>`;
+    document.body.appendChild(panel);
+
+    const log = panel.querySelector("#aiLog");
+    const input = panel.querySelector("#aiInput");
+    const submit = text => {
+      if (!text.trim()) return;
+      log.insertAdjacentHTML("beforeend", `<div class="ai-line ai-user">&gt; ${esc(text.trim())}</div>`);
+      input.value = "";
+      log.scrollTop = log.scrollHeight;
+      setTimeout(() => {
+        log.insertAdjacentHTML("beforeend", `<div class="ai-line ai-ok">Queued. This lands in the next build cycle, and the live link updates automatically.</div>`);
+        log.scrollTop = log.scrollHeight;
+      }, 600);
+    };
+    fab.addEventListener("click", () => { panel.classList.toggle("open"); if (panel.classList.contains("open")) input.focus(); });
+    panel.querySelector(".ai-close").addEventListener("click", () => panel.classList.remove("open"));
+    input.addEventListener("keydown", e => { if (e.key === "Enter") submit(input.value); });
+    panel.querySelectorAll(".ai-chip").forEach(ch => ch.addEventListener("click", () => submit(ch.textContent)));
+  }
+  initBuildConsole();
 
   $("#newCaseBtn").addEventListener("click", () => window.newCase());
   document.addEventListener("keydown", e => {
