@@ -116,22 +116,33 @@ lien negotiation history, referral fee tracking, document versioning.
 - Saved scenarios: Save Scenario chips ("$125,000 nets $64,496"), click to
   reload, x to remove, keeps last 4 (Litify compare pattern).
 
-## Next candidates (ranked 2026-08-07 PM, from the "never open Drive again" audit)
-1. Upload into the file: drag-and-drop / Upload button on case Documents that
-   files a doc to the selected folder with AI summary + NEW badge (mock).
-2. Compose from the case: Reply/New Email buttons on Comms that open a composer
-   and log the sent mail to the file (retires Outlook for case mail).
-3. My Tasks queue: per-person view (Dana, Renee, Chris) of open tasks across
-   all cases sorted by due date; switcher in the sidebar user chip.
-4. E-sign send flow: "Send for signature" from Generate Document, with a
-   pending-signature state on the doc row.
-5. Trust ledger view on Settlements: settled funds in trust, waiting on lien
-   payoffs, ready to disburse.
-6. "Customize layout" mock (Neos Dynamic Layouts pattern): add-a-field /
-   add-a-tab panel to close the "fully customizable" ask.
-7. Document versioning row states; edit-in-place mock (embed story: Google Docs
-   editor in production).
-8. Reports referral ROI + print stylesheet; command-K palette; mobile pass.
+### Iteration 6 (2026-08-07) - the "never open Drive again" batch
+- Upload into the file: Upload button + drag-and-drop zone on case Documents,
+  files to the selected folder with AI summary + NEW badge, activity logged.
+- Compose from the case: New Email + Reply on Comms with an AI Draft button;
+  sent mail logs to the file from chris@dixoninjuryfirm.com.
+- My Tasks nav view: cross-case open tasks per person (Chris/Dana/Renee/
+  Everyone chips, owner derived from task wording), sorted by due date,
+  click-to-complete, nav badge counts due this week.
+- E-signature: Send for Signature in the doc viewer (docx) + a HIPAA-for-esign
+  template in Generate Document; Awaiting signature / Signed pills on rows.
+- Trust Account (IOLTA) ledger on Settlements: deposits and disbursements per
+  settled case with Cleared/Disbursed status, zero balance footer.
+- + Customize tab on every case: add custom tabs per case type (blank,
+  investigation, expert starters) and add fields to them (Neos Dynamic Layouts
+  answer to "fully customizable").
+- Reports: "Where Cases Come From" source ROI table (source seeded per case in
+  enrich.js); Export PDF now prints via a real print stylesheet.
+- Doc versioning pill support (d.v), Edit button in viewer (embedded-editor
+  story), Cmd/Ctrl-K or / focuses global search.
+- Verified via scripted browser checks: trust card, ROI table, composer send,
+  custom tab creation, drag-drop upload all pass; zero console errors.
+
+## Next candidates
+1. Mobile pass below 820px (topbar wrap, case tab scroll, table density).
+2. Signed-state transition demo (automation flips Awaiting to Signed).
+3. Calendar: include checklist due dates as auto events.
+4. Portal: messages thread synced with Comms texts.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but

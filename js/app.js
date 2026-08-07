@@ -30,11 +30,16 @@
     x: S + '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
     trash: S + '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     edit: S + '<path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>',
-    external: S + '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>'
+    external: S + '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>',
+    tasklist: S + '<path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/><path d="m3 6 1.2 1.2L6.5 4.9"/><path d="m3 12 1.2 1.2 2.3-2.3"/><path d="m3 18 1.2 1.2 2.3-2.3"/></svg>',
+    pen: S + '<path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>',
+    sig: S + '<path d="M2 20c2-2 3-6 5-6s2 4 4 4 3-8 5-8 2 6 4 6 2-2 2-2"/></svg>',
+    upload: S + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 8 5-5 5 5"/><path d="M12 3v12"/></svg>'
   };
 
   const NAV = [
     { hash: "#/dashboard", label: "Dashboard", icon: "dashboard" },
+    { hash: "#/tasks", label: "My Tasks", icon: "tasklist", badge: () => allTasks().filter(t => t.due && t.due <= "2026-08-14").length },
     { hash: "#/leads", label: "Leads", icon: "bolt", badge: () => LEADS.filter(l => l.status === "New").length },
     { hash: "#/cases", label: "Cases", icon: "briefcase" },
     { hash: "#/documents", label: "Documents", icon: "folder", badge: () => allDocs().filter(d => d.isNew).length },
@@ -85,6 +90,12 @@
   const scoreClass = s => s >= 85 ? "hot" : s >= 65 ? "warm" : "cool";
   const logActivity = text => ACTIVITY.unshift({ when: "Just now", icon: "doc", text, caseId: null });
 
+  const taskOwner = (c, label) => /review|evaluate|call|deposition|demand|mediation|prep|deadline|counter/i.test(label) ? c.attorney : c.paralegal;
+  function allTasks() {
+    return CASES.flatMap(c => c.checklist.map((k, i) => ({ ...k, idx: i, client: c.client, caseId: c.id, stage: c.stage, owner: taskOwner(c, k.label) })))
+      .filter(t => !t.done);
+  }
+
   /* ---------- toast + modal ---------- */
 
   let toastTimer;
@@ -126,6 +137,8 @@
             </div>
           </div>
           <div class="viewer-actions">
+            ${d.name.endsWith(".docx") ? `<button class="btn btn-ghost btn-sm" id="editDoc">${I.pen}<span>Edit</span></button>
+            <button class="btn btn-ghost btn-sm" id="sigDoc">${I.sig}<span>Send for Signature</span></button>` : ""}
             <button class="btn btn-ghost btn-sm" id="openDrive">${I.external}<span>Open in Drive</span></button>
             <button class="btn btn-ghost btn-sm" id="dlDoc">${I.download}<span>Download</span></button>
             <button class="icon-btn" data-close title="Close">${I.x}</button>
@@ -149,6 +162,16 @@
       </div>`, true);
     $("#openDrive").addEventListener("click", () => toast("In production this opens the original file in Google Drive"));
     $("#dlDoc").addEventListener("click", () => toast("Downloading " + d.name));
+    const ed = $("#editDoc");
+    if (ed) ed.addEventListener("click", () => toast("In production this opens the embedded editor. The file never leaves Drive"));
+    const sg = $("#sigDoc");
+    if (sg) sg.addEventListener("click", () => {
+      d.sig = "pending";
+      logActivity(`${d.name} sent to ${c.client} for e-signature`);
+      closeModal();
+      refresh();
+      toast(`Sent to ${c.client} for e-signature. You will be notified when it is signed`);
+    });
   };
 
   /* ---------- client portal (what the client sees on their phone) ---------- */
@@ -330,6 +353,35 @@
       </div>`;
   }
 
+  /* ---------- my tasks ---------- */
+
+  let taskPerson = "Chris Dixon";
+
+  function viewTasks() {
+    const people = ["Chris Dixon", "Dana Ellis", "Renee Carter", "Everyone"];
+    const tasks = allTasks()
+      .filter(t => taskPerson === "Everyone" || t.owner === taskPerson)
+      .sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999"));
+    return `
+      <div class="page-head">
+        <div class="page-title"><h1>My Tasks</h1><p>Every open task across every file, so nobody keeps a side list.</p></div>
+      </div>
+      <div class="filter-row">
+        ${people.map(p => `<button class="chip ${taskPerson === p ? "active" : ""}" data-person="${p}">${p === "Everyone" ? "Everyone" : p.split(" ")[0]}</button>`).join("")}
+        <span class="drive-note" style="margin-left:auto">${tasks.length} open${taskPerson !== "Everyone" ? " for " + taskPerson.split(" ")[0] : ""}</span>
+      </div>
+      <div class="card">
+        <div class="check-list">
+          ${tasks.map(t => `<div class="check-item clickable" data-check="${t.idx}" data-case="${t.caseId}">
+            <span class="check-box"></span>
+            <div style="min-width:0"><div class="check-label">${esc(t.label)}</div>
+            <div class="td-sub"><a href="#/case/${t.caseId}" onclick="event.stopPropagation()" style="color:var(--orange);text-decoration:none;font-weight:600">${esc(t.client)}</a> · ${esc(t.stage)}${taskPerson === "Everyone" ? " · " + esc(t.owner) : ""}</div></div>
+            <span class="check-due ${t.due && t.due <= "2026-08-14" ? "soon" : ""}">${t.due ? fmtDate(t.due) : ""}</span>
+          </div>`).join("") || `<div class="empty-state">Nothing open. Enjoy it while it lasts.</div>`}
+        </div>
+      </div>`;
+  }
+
   /* ---------- cases ---------- */
 
   let caseFilter = "All";
@@ -443,6 +495,8 @@
         </div>
         <div class="tabs">
           ${tabs.map(([k, label]) => `<button class="tab ${tab === k ? "active" : ""}" data-tab="${k}" data-case="${c.id}">${label}</button>`).join("")}
+          ${(CUSTOM_TABS[c.type] || []).map(t => `<button class="tab ${tab === t.key ? "active" : ""}" data-tab="${t.key}" data-case="${c.id}">${esc(t.label)}</button>`).join("")}
+          <button class="tab tab-add" onclick="customizeLayout('${c.id}')" title="Customize this case type's layout">+ Customize</button>
         </div>
       </div>
       <div class="tab-body">${caseTab(c, tab)}</div>`;
@@ -475,7 +529,8 @@
       ["Demand letter", "06 Demand", "Demand letter draft"],
       ["Records request", "02 Medical Records", "Records request"],
       ["Representation letter", "04 Insurance", "Letter of representation"],
-      ["Settlement statement", "08 Settlement", "Settlement statement draft"]
+      ["Settlement statement", "08 Settlement", "Settlement statement draft"],
+      ["HIPAA authorization for e-signature", "01 Intake & Retainer", "HIPAA authorization", true]
     ];
     openModal(`
       <div class="form-head"><h2>Generate Document</h2><button class="icon-btn" data-close>${I.x}</button></div>
@@ -485,10 +540,12 @@
       </div>`);
     document.querySelectorAll(".tpl").forEach(b => b.addEventListener("click", () => {
       const t = templates[+b.dataset.tpl];
-      c.docs.unshift({ folder: t[1], name: `${t[2]} - ${c.client.split(" ").slice(-1)[0]}.docx`, date: TODAY, isNew: true, ai: `${t[0]} generated from case data: parties, ${c.medicals.length} providers, and the ${c.insurer} claim. Ready for attorney review.` });
+      const doc = { folder: t[1], name: `${t[2]} - ${c.client.split(" ").slice(-1)[0]}.docx`, date: TODAY, isNew: true, ai: `${t[0]} generated from case data: parties, ${c.medicals.length} providers, and the ${c.insurer} claim. Ready for attorney review.` };
+      if (t[3]) { doc.sig = "pending"; doc.ai = `Generated from case data and sent to ${c.client} for e-signature. Status tracked here.`; }
+      c.docs.unshift(doc);
       logActivity(`${t[0]} generated for ${c.client} and filed to ${t[1]}`);
       closeModal();
-      toast(t[0] + " drafted and filed to Drive");
+      toast(t[3] ? `Sent to ${c.client} for e-signature and filed` : t[0] + " drafted and filed to Drive");
       refresh();
     }));
   };
@@ -649,15 +706,23 @@
           </div>
         </div>` : ""}
         <div class="card">
-          <div class="card-head"><h2>Emails</h2><span class="drive-note">${I.mail} Pulled from Outlook and matched to this file automatically</span></div>
-          ${c.emails.slice().sort((a, b) => b.date.localeCompare(a.date)).map(e => `<div class="email">
+          <div class="card-head"><h2>Emails</h2>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="drive-note">${I.mail} Pulled from Outlook and matched to this file automatically</span>
+              <button class="btn btn-ghost btn-sm" onclick="composeEmail('${c.id}', -1)">New Email</button>
+            </div>
+          </div>
+          ${c.emails.slice().sort((a, b) => b.date.localeCompare(a.date)).map((e, i) => `<div class="email">
             <div class="email-top">
               <span class="email-from">${esc(e.from)}</span>
               <span class="email-date">${fmtDate(e.date)}</span>
             </div>
             <div class="email-subject">${esc(e.subject)}</div>
             <div class="email-body">${esc(e.body)}</div>
-            ${e.filed ? `<div class="email-filed">${I.folder}<span>Attachment filed to ${esc(e.filed)}</span></div>` : ""}
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              ${e.filed ? `<div class="email-filed" style="margin-top:0">${I.folder}<span>Attachment filed to ${esc(e.filed)}</span></div>` : ""}
+              ${e.from !== "Chris Dixon" ? `<button class="mini-btn" style="width:auto;padding:0 10px;font-size:12px;font-weight:600" onclick="composeEmail('${c.id}', ${c.emails.indexOf(e)})">Reply</button>` : ""}
+            </div>
           </div>`).join("") || `<div class="empty-state">No emails matched to this file yet.</div>`}
         </div>
       </div>`;
@@ -688,8 +753,101 @@
     }
 
     if (tab === "documents") return docBrowser(c);
+
+    const custom = (CUSTOM_TABS[c.type] || []).find(t => t.key === tab);
+    if (custom) {
+      return `<div class="card">
+        <div class="card-head"><h2>${esc(custom.label)}</h2><span class="drive-note">Custom tab on every ${esc(c.type)} case</span></div>
+        <div class="kv-grid">
+          ${custom.fields.map(f => `<div class="kv"><div class="kv-label">${esc(f.label)}</div><div class="kv-value" style="color:${f.value ? "inherit" : "var(--faint)"}">${esc(f.value || "Not set")}</div></div>`).join("")}
+        </div>
+        <div class="custom-add">
+          <input type="text" id="cf-label" placeholder="New field name">
+          <select id="cf-type"><option>Text</option><option>Date</option><option>Money</option><option>Contact</option><option>Dropdown</option></select>
+          <button class="btn btn-ghost btn-sm" onclick="addCustomField('${c.type}','${custom.key}','${c.id}')">Add Field</button>
+        </div>
+      </div>`;
+    }
     return "";
   }
+
+  const CUSTOM_TABS = {};
+
+  window.customizeLayout = function (id) {
+    const c = caseById(id);
+    openModal(`
+      <div class="form-head"><h2>Customize ${esc(c.type)} Layout</h2><button class="icon-btn" data-close>${I.x}</button></div>
+      <div class="form-note">Changes apply to every ${esc(c.type)} case. This is the part Podio made you pay a consultant for.</div>
+      <div class="form-grid form-grid-1">
+        <label>Add a tab<input id="ct-name" type="text" placeholder="Investigation, Expert Witnesses, Subrogation"></label>
+        <label>Start from<select id="ct-tpl">
+          <option value="blank">Blank tab</option>
+          <option value="investigation">Investigation starter (scene, recon, witnesses)</option>
+          <option value="experts">Expert witness starter (name, specialty, report due)</option>
+        </select></label>
+      </div>
+      <div class="form-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ct-save">Add Tab</button></div>`);
+    $("#ct-save").addEventListener("click", () => {
+      const label = $("#ct-name").value.trim() || "Custom Tab";
+      const tpl = $("#ct-tpl").value;
+      const fields = tpl === "investigation"
+        ? [{ label: "Scene visit date", value: "" }, { label: "Reconstruction expert", value: "" }, { label: "Witness list status", value: "" }]
+        : tpl === "experts"
+        ? [{ label: "Expert name", value: "" }, { label: "Specialty", value: "" }, { label: "Report due", value: "" }]
+        : [];
+      if (!CUSTOM_TABS[c.type]) CUSTOM_TABS[c.type] = [];
+      const key = "x" + Date.now().toString(36);
+      CUSTOM_TABS[c.type].push({ key, label, fields });
+      closeModal();
+      toast(`"${label}" added to every ${c.type} case`);
+      location.hash = `#/case/${c.id}/${key}`;
+    });
+  };
+
+  window.addCustomField = function (type, key, id) {
+    const tabDef = (CUSTOM_TABS[type] || []).find(t => t.key === key);
+    const label = $("#cf-label").value.trim();
+    if (!tabDef || !label) return;
+    tabDef.fields.push({ label: label + " (" + $("#cf-type").value + ")", value: "" });
+    refresh();
+    toast(`Field "${label}" added for all ${type} cases`);
+  };
+
+  window.composeEmail = function (id, replyIdx) {
+    const c = caseById(id);
+    const orig = replyIdx >= 0 ? c.emails[replyIdx] : null;
+    const insurer = c.insurer.split(" (")[0];
+    const defaultTo = orig
+      ? (orig.from.includes("(") ? orig.from.match(/^([^(]+)/)[1].trim().toLowerCase().replace(/\s+/g, ".") + "@" + insurer.toLowerCase().replace(/\s+/g, "") + ".example" : c.email)
+      : (c.adjuster !== "Unassigned" ? c.adjuster.toLowerCase().replace(/\s+/g, ".") + "@" + insurer.toLowerCase().replace(/\s+/g, "") + ".example" : c.email);
+    openModal(`
+      <div class="form-head"><h2>${orig ? "Reply" : "New Email"}</h2><button class="icon-btn" data-close>${I.x}</button></div>
+      <div class="form-note">Sends from chris@dixoninjuryfirm.com through Outlook and logs to this file automatically.</div>
+      <div class="form-grid form-grid-1">
+        <label>To<input id="e-to" type="text" value="${esc(defaultTo)}"></label>
+        <label>Subject<input id="e-subj" type="text" value="${esc(orig ? "RE: " + orig.subject : c.client + " | Claim " + c.claimNo)}"></label>
+        <label>Message<textarea id="e-body" rows="6" placeholder="Write it, or ask AI to draft from the file"></textarea></label>
+      </div>
+      <div class="form-foot">
+        <button class="btn btn-ghost" id="e-ai">AI Draft</button>
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="e-send">Send and Log</button>
+      </div>`);
+    $("#e-ai").addEventListener("click", () => {
+      $("#e-body").value = orig
+        ? `Thank you for your correspondence of ${fmtDate(orig.date)}. We are reviewing with our client and will respond with a full position, including the documentation requested, by the stated deadline. All rights reserved.`
+        : `Please find enclosed our correspondence regarding the above-referenced claim. The requested documentation is attached from the case file. We look forward to your prompt response.`;
+      toast("Drafted from the case file. Edit before sending");
+    });
+    $("#e-send").addEventListener("click", () => {
+      const body = $("#e-body").value.trim() || "(empty message)";
+      c.emails.unshift({ from: "Chris Dixon", subject: $("#e-subj").value.trim(), date: TODAY, filed: null, body });
+      logActivity(`Email sent on ${c.client} and logged to the file`);
+      closeModal();
+      refresh();
+      toast("Sent through Outlook and logged to the file");
+    });
+  };
 
   window.reqRecords = function (id) {
     const c = caseById(id);
@@ -722,7 +880,11 @@
     return `<div class="card">
       <div class="card-head">
         <h2>Documents</h2>
-        <span class="drive-note">${I.cloud} Synced with Google Drive · Clients / ${esc(c.client)} / ${c.num}</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="drive-note">${I.cloud} Synced with Google Drive · Clients / ${esc(c.client)} / ${c.num}</span>
+          <button class="btn btn-ghost btn-sm" id="uploadBtn" data-case="${c.id}">${I.upload}<span>Upload</span></button>
+          <input type="file" id="uploadInput" multiple hidden>
+        </div>
       </div>
       <div class="doc-layout">
         <div class="folder-tree">
@@ -733,15 +895,16 @@
             return `<div class="folder ${current === f ? "active" : ""}" data-folder="${esc(f)}">${I.folder}<span>${esc(f)}</span>${newCount ? `<span class="new-pill">${newCount}</span>` : `<span class="folder-count">${inF.length || ""}</span>`}</div>`;
           }).join("")}
         </div>
-        <div class="file-list">
+        <div class="file-list" id="dropZone">
+          <div class="drop-hint-overlay">${I.upload}<span>Drop to file in ${esc(current || "01 Intake & Retainer")}</span></div>
           ${files.map(d => `<div class="file-row" onclick="openDoc('${c.id}','${esc(d.name)}')">
             <div class="file-icon ${d.name.endsWith(".docx") ? "docx" : ""}">${I.doc}</div>
             <div class="feed-body">
-              <div class="file-name">${esc(d.name)}${d.isNew ? '<span class="new-pill">NEW</span>' : ""}</div>
-              <div class="file-meta">${esc(d.folder)} · Filed ${fmtDate(d.date)}</div>
+              <div class="file-name">${esc(d.name)}${d.isNew ? '<span class="new-pill">NEW</span>' : ""}${d.sig === "pending" ? '<span class="sig-pill">Awaiting signature</span>' : d.sig === "signed" ? '<span class="sig-pill signed">Signed</span>' : ""}${d.v ? `<span class="v-pill">v${d.v}</span>` : ""}</div>
+              <div class="file-meta">${esc(d.folder)} · Filed ${fmtDate(d.date)}${d.v ? ` · replaced v${d.v - 1}` : ""}</div>
               <div class="feed-ai">${esc(d.ai)}</div>
             </div>
-          </div>`).join("") || `<div class="empty-state">No files in this folder yet.</div>`}
+          </div>`).join("") || `<div class="empty-state">No files in this folder yet. Drag one in or click Upload.</div>`}
         </div>
       </div>
     </div>`;
@@ -871,7 +1034,7 @@
           }).join("")}</tbody>
         </table>
       </div>
-      <div class="card table-wrap">
+      <div class="card table-wrap" style="margin-bottom:18px">
         <div class="card-head"><h2>Settled This Year</h2></div>
         <table>
           <thead><tr><th>Client</th><th>Type</th><th>Settled</th><th>Gross</th><th>Attorney Fees</th><th>Net to Client</th></tr></thead>
@@ -880,10 +1043,38 @@
             const fees = st.amount / 3;
             return `<tr onclick="location.hash='#/case/${c.id}'">
               <td class="td-main">${esc(c.client)}</td><td>${esc(c.type)}</td><td>${fmtDate(st.date)}</td>
-              <td class="money">${money(st.amount)}</td><td class="money">${money(fees)}</td><td class="money" style="color:var(--green);font-weight:600">${money(st.amount - fees - c.expenses.reduce((s, e) => s + e.amount, 0) - c.medicals.reduce((s, m) => s + m.lien * 0.65, 0))}</td>
+              <td class="money">${money(st.amount)}</td><td class="money">${money(fees)}</td><td class="money" style="color:var(--green);font-weight:600">${money(st.amount - fees - c.expenses.reduce((s, e) => s + e.amount, 0) - c.lienLedger.reduce((s, l) => s + l.current, 0))}</td>
             </tr>`;
           }).join("")}</tbody>
         </table>
+      </div>
+      <div class="card table-wrap">
+        <div class="card-head"><h2>Trust Account (IOLTA)</h2><span class="drive-note">Settlement checks land here and leave only by the disbursement checklist</span></div>
+        <table>
+          <thead><tr><th>Date</th><th>Case</th><th>Entry</th><th style="text-align:right">Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            ${settled.flatMap(c => {
+              const st = c.negotiation.find(n => n.kind === "Settlement");
+              const fees = Math.round(st.amount / 3);
+              const liens = c.lienLedger.reduce((s, l) => s + l.current, 0);
+              const exp = c.expenses.reduce((s, e) => s + e.amount, 0);
+              const done = c.checklist.find(k => /disbursement/i.test(k.label));
+              const dd = done && done.date ? done.date : st.date;
+              return [
+                [st.date, c.client, "Settlement check deposited", st.amount, "Cleared"],
+                [dd, c.client, "Attorney fees to operating", -fees, "Disbursed"],
+                [dd, c.client, "Lien payoffs (" + c.lienLedger.length + ")", -liens, "Disbursed"],
+                [dd, c.client, "Case expenses reimbursed", -exp, "Disbursed"],
+                [dd, c.client, "Net to client", -(st.amount - fees - liens - exp), "Disbursed"]
+              ];
+            }).map(([date, client, entry, amt, status]) => `<tr class="no-click">
+              <td>${fmtDate(date)}</td><td class="td-main">${esc(client)}</td><td style="white-space:normal">${entry}</td>
+              <td class="money" style="text-align:right;${amt > 0 ? "color:var(--green);font-weight:600" : ""}">${amt > 0 ? "+" : "-"} ${money(Math.abs(amt))}</td>
+              <td><span class="med-status ${status === "Cleared" ? "ms-received" : "ms-complete"}">${status}</span></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <div class="table-foot"><span>In trust today: <strong class="money">$0</strong></span><span>Every dollar in and out is tied to a case and a checklist step.</span></div>
       </div>`;
   }
 
@@ -959,6 +1150,23 @@
         <div class="stat"><span class="stat-label">Recovered This Year</span><span class="stat-value">${money(settledTotal)}</span><span class="stat-note up">${settled.length} settlements</span></div>
         <div class="stat"><span class="stat-label">Average Case Age</span><span class="stat-value">7.2 mo</span><span class="stat-note">open files</span></div>
         <div class="stat"><span class="stat-label">Chat Lead Conversion</span><span class="stat-value">38%</span><span class="stat-note up">vs 22% before scoring</span></div>
+      </div>
+      <div class="card table-wrap" style="margin-bottom:18px">
+        <div class="card-head"><h2>Where Cases Come From</h2><span class="drive-note">Signed cases and fees by source, the marketing math Podio could not do</span></div>
+        <table>
+          <thead><tr><th>Source</th><th>Open Cases</th><th>Pipeline Value</th><th>Settled Fees This Year</th></tr></thead>
+          <tbody>${["Website chat", "Past client referral", "Google Ads"].map(src => {
+            const openSrc = open.filter(c => c.source === src);
+            const settledSrc = settled.filter(c => c.source === src);
+            const fees = settledSrc.reduce((s, c) => s + c.negotiation.find(n => n.kind === "Settlement").amount / 3, 0);
+            return `<tr class="no-click">
+              <td class="td-main">${src}</td>
+              <td>${openSrc.length}</td>
+              <td class="money">${money(openSrc.reduce((s, c) => s + c.estValue, 0))}</td>
+              <td class="money" style="color:var(--green);font-weight:600">${fees ? money(fees) : "None yet"}</td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>
       </div>
       <div class="report-grid">
         <div class="card"><div class="card-head"><h2>Cases by Stage</h2></div><div class="bar-chart">${bars(byStage, maxStage, v => v)}</div></div>
@@ -1189,6 +1397,7 @@
     renderNav(hash);
     let html = "";
     if (parts[0] === "dashboard" || !parts[0]) html = viewDashboard();
+    else if (parts[0] === "tasks") html = viewTasks();
     else if (parts[0] === "cases") html = viewCases();
     else if (parts[0] === "case") html = viewCase(parts[1], parts[2]);
     else if (parts[0] === "documents") html = viewDocuments();
@@ -1209,6 +1418,9 @@
   function bindView(parts) {
     document.querySelectorAll(".chip[data-stage]").forEach(ch => {
       ch.addEventListener("click", () => { caseFilter = ch.dataset.stage; refresh(); });
+    });
+    document.querySelectorAll(".chip[data-person]").forEach(ch => {
+      ch.addEventListener("click", () => { taskPerson = ch.dataset.person; refresh(); });
     });
     document.querySelectorAll(".tab[data-tab]").forEach(t => {
       t.addEventListener("click", () => {
@@ -1300,6 +1512,29 @@
       update(parse());
       renderScens();
     }
+    const upBtn = $("#uploadBtn");
+    if (upBtn) {
+      const c = caseById(upBtn.dataset.case);
+      const input = $("#uploadInput");
+      const fileThem = names => {
+        const folder = (activeFolder && FOLDER_TEMPLATE.includes(activeFolder)) ? activeFolder : "01 Intake & Retainer";
+        names.forEach(n => c.docs.unshift({ folder, name: n, date: TODAY, isNew: true, ai: "Filed to Drive and summarized automatically. Key dates and amounts extracted to the checklist." }));
+        logActivity(`${names.length} document${names.length > 1 ? "s" : ""} uploaded to ${c.client} ${folder}`);
+        refresh();
+        toast(`Filed to ${folder} and summarized`);
+      };
+      upBtn.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => { if (input.files.length) fileThem([...input.files].map(f => f.name)); });
+      const dz = $("#dropZone");
+      dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("dragging-over"); });
+      dz.addEventListener("dragleave", e => { if (e.target === dz) dz.classList.remove("dragging-over"); });
+      dz.addEventListener("drop", e => {
+        e.preventDefault();
+        dz.classList.remove("dragging-over");
+        const names = [...(e.dataTransfer.files || [])].map(f => f.name);
+        if (names.length) fileThem(names);
+      });
+    }
     const sms = $("#smsSend");
     if (sms) sms.addEventListener("click", () => {
       const c = caseById(sms.dataset.case);
@@ -1334,13 +1569,20 @@
     }
     if (parts[0] === "reports") {
       const b = $("#exportReport");
-      if (b) b.addEventListener("click", () => toast("In production this exports the report pack as a PDF"));
+      if (b) b.addEventListener("click", () => window.print());
     }
   }
 
   /* ---------- init ---------- */
 
   $("#newCaseBtn").addEventListener("click", () => window.newCase());
+  document.addEventListener("keydown", e => {
+    const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing)) {
+      e.preventDefault();
+      $("#globalSearch").focus();
+    }
+  });
   bindBell();
   bindSearch();
   window.addEventListener("hashchange", route);

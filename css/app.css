@@ -1139,6 +1139,74 @@ tbody tr:last-child td { border-bottom: none; }
 .lead-col.drop-hint .lead-cards { outline: 2px dashed var(--orange); outline-offset: 4px; border-radius: 10px; }
 .lead-convert { width: 100%; justify-content: center; margin-top: 10px; }
 
+/* ---------- Upload drop zone ---------- */
+
+.file-list { position: relative; }
+
+.drop-hint-overlay {
+  display: none;
+  position: absolute; inset: 8px;
+  border: 2px dashed var(--orange);
+  border-radius: 12px;
+  background: rgba(253, 232, 220, 0.85);
+  z-index: 5;
+  align-items: center; justify-content: center;
+  gap: 10px;
+  color: var(--orange);
+  font-weight: 600; font-size: 14px;
+  pointer-events: none;
+}
+.drop-hint-overlay svg { width: 20px; height: 20px; }
+.file-list.dragging-over .drop-hint-overlay { display: flex; }
+
+/* ---------- Signature + version pills ---------- */
+
+.sig-pill {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--amber); background: var(--amber-soft);
+  border-radius: 5px; padding: 1px 7px;
+}
+.sig-pill.signed { color: var(--green); background: var(--green-soft); }
+
+.v-pill {
+  font-size: 10px; font-weight: 700;
+  color: var(--muted); background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px; padding: 1px 6px;
+}
+
+/* ---------- Custom tabs ---------- */
+
+.tab-add { color: var(--faint); font-weight: 500; }
+.tab-add:hover { color: var(--orange); }
+
+.custom-add {
+  display: flex; gap: 8px; align-items: center;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+.custom-add input, .custom-add select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+.custom-add input { flex: 1; min-width: 0; }
+.custom-add input:focus { border-color: var(--orange); }
+
+/* ---------- Print (Export PDF) ---------- */
+
+@media print {
+  .sidebar, .topbar, .btn, .filter-row, .icon-btn, #toast, #modal { display: none !important; }
+  .content { overflow: visible; padding: 0; }
+  #app { height: auto; overflow: visible; display: block; }
+  .main { display: block; }
+  body { background: #fff; }
+  .card { box-shadow: none; break-inside: avoid; margin-bottom: 14px; }
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1180px) {

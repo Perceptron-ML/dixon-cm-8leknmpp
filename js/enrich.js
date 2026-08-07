@@ -58,6 +58,12 @@
       ];
     }
 
+    /* referral source (deterministic) */
+    if (!c.source) {
+      const r = hash(c.id + "src") % 10;
+      c.source = r < 5 ? "Website chat" : r < 8 ? "Past client referral" : "Google Ads";
+    }
+
     /* lien ledger defaults */
     if (!c.lienLedger) {
       c.lienLedger = c.medicals.filter(m => m.lien > 0).map(m => ({
