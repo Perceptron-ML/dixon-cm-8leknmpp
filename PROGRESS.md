@@ -13,6 +13,37 @@ Peyton: leave notes for the loop under "Notes from Peyton" below. They get top p
 
 ## Done
 
+### Iteration 3 (2026-08-07) - Clio parity + hosting
+- Hosted: public GitHub repo peyton-marcotte/dixon-cm-8leknmpp, GitHub Pages at
+  https://peyton-marcotte.github.io/dixon-cm-8leknmpp/ (noindex meta set; deploy
+  by pushing to main). Local preview still port 8742.
+- Stage moves are reversible: click any stage in the chevron bar (back or
+  forward), every move gets an Undo in the toast.
+- Settlement Calculator on the Negotiation tab: type or slide a gross number,
+  live waterfall (fee 33.3 percent or 25 percent WC, expenses, liens after 35
+  percent reduction, net to client) with an IOLTA trust note. Research says this
+  is the highest demo-impact PI feature; Clio sells it in a paid PI add-on.
+- SOL countdown chips on case Details + a firm-wide Statute Watch card on the
+  dashboard (research's number 2 fear-button feature).
+- Two-way client texting: Comms tab (renamed from Emails) with an SMS thread on
+  the featured case, working composer that logs to the file (research number 3).
+- Related Contacts card on case Overview (adjuster, defense counsel, providers,
+  paralegal, linked from CONTACTS).
+- Court details (venue, judge, case no, division) on litigation cases c5, c13.
+- New Case toast now includes "Conflict check passed".
+- Logo mark re-cropped without the divider bar (pixel-run analysis, cols 0-47).
+- Fresh research (4th report) on PI daily needs, digest below.
+
+### Clio-parity answer (for Peyton)
+Have: matter dashboard w/ financials, tabbed matter page, docs w/ Drive sync
+(deeper than Clio's), tasks, comms (email + SMS), calendar, contacts w/ related,
+reports, intake pipeline, custom fields, activity feed, settlement calculator,
+medical records tracker (Clio charges extra for these last two via PI add-on).
+Deliberately absent (contingency firms ignore them): hourly time tracking,
+invoicing/billing, payment plans. Not built yet: client portal (Case Status
+style stage tracker for clients), court-rules deadline chains, trust ledger UI,
+lien negotiation history, referral fee tracking, document versioning.
+
 ### Iteration 2 (2026-08-07) - the big interactivity + coverage pass
 - Document viewer (the Drive overlay ask): click any file anywhere and it opens
   a paper-styled rendering (letterhead, meta, body generated per folder type)
@@ -65,16 +96,18 @@ Peyton: leave notes for the loop under "Notes from Peyton" below. They get top p
   can't write into Drive (we show generated docs filing straight to Drive).
 - Pitch math: 10 users on Neos-class = ~$12-23k/yr forever.
 
-## Next candidates (ranked)
-1. Case page "Parties" data (defendant, defense counsel, witnesses) either as a
-   tab or an overview card; wire contacts to cases ("3 active cases" per contact).
-2. Reports: referral-source ROI card + month-over-month settled bar; make
-   Export PDF produce a real print stylesheet (window.print).
-3. Global quick actions: keyboard shortcut (/) to focus search; command-K
-   palette would demo well.
-4. Drive two-way story: "Upload to folder" button in case Documents that fakes
-   a drop zone and files the doc with AI summary.
-5. Mobile pass below 820px (topbar wrap, case tabs scroll, table density).
+## Next candidates (ranked, informed by PI research report 4)
+1. Client portal mock: a "View as client" page per case, package-tracker stage
+   bar + messages + upload (Case Status pattern). Cuts "any update?" calls,
+   big demo moment for Chris.
+2. Lien negotiation ledger: per-lien history (original, offers, final reduced)
+   feeding the settlement calculator automatically.
+3. Litify-style saved settlement scenarios: save 2-3 calculator states and
+   compare side by side.
+4. Drive two-way: "Upload to folder" drop zone in case Documents; document
+   versioning row states.
+5. Reports: referral-source ROI + print stylesheet for Export PDF.
+6. Command-K palette / keyboard shortcuts; mobile pass below 820px.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but

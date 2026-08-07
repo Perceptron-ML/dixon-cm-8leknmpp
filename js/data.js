@@ -498,6 +498,18 @@ const CASES = [
   }
 ];
 
+/* Litigation details for cases in suit */
+CASES[4].court = { venue: "St. Louis County Circuit Court", judge: "Hon. Patricia Grimes", caseNo: "26SL-CC02841", division: "Division 14" };
+CASES[12].court = { venue: "City of St. Louis Circuit Court", judge: "Hon. Marcus Bell", caseNo: "2622-CC00917", division: "Division 6" };
+
+/* Two-way client texting thread for the featured case */
+CASES[0].texts = [
+  { from: "firm", text: "Hi Marcus, State Farm sent a revised offer of $98,000. Chris would like to walk you through it. Does Thursday at 10 AM work for a call?", when: "Aug 4, 2:12 PM" },
+  { from: "client", text: "Thursday 10 works. My neighbor said I shouldn't take less than six figures", when: "Aug 4, 3:40 PM" },
+  { from: "firm", text: "Noted. Chris will lay out where we think it lands after your final PT records. Talk Thursday.", when: "Aug 4, 3:52 PM" },
+  { from: "client", text: "Sounds good, thank you", when: "Aug 4, 3:55 PM" }
+];
+
 /* Hand-written emails for featured cases; the rest are generated in enrich.js */
 CASES[0].emails = [
   { from: "Karen Voss (State Farm)", subject: "Reed claim 55-J884-201 - revised offer", date: "2026-08-04", filed: "04 Insurance",

@@ -66,6 +66,22 @@
     return CASES.flatMap(c => c.docs.map(d => ({ ...d, caseId: c.id, client: c.client, num: c.num })));
   }
   const caseById = id => CASES.find(c => c.id === id);
+
+  function relatedContacts(c) {
+    const out = [];
+    const last = c.client.split(" ").slice(-1)[0];
+    const adj = CONTACTS.find(x => x.name === c.adjuster);
+    if (adj) out.push({ ...adj, rel: `Adjuster, ${c.insurer.split(" (")[0]}` });
+    const def = CONTACTS.find(x => x.role.includes(`(${last})`));
+    if (def) out.push({ ...def, rel: `Defense counsel, ${def.org}` });
+    c.medicals.forEach(m => {
+      const p = CONTACTS.find(x => x.org === m.provider || x.name === m.provider);
+      if (p) out.push({ ...p, name: p.name === "Records Dept" ? p.org : p.name, rel: "Treating provider" });
+    });
+    const para = CONTACTS.find(x => x.name === c.paralegal);
+    if (para) out.push({ ...para, rel: "Assigned paralegal" });
+    return out.slice(0, 5);
+  }
   const scoreClass = s => s >= 85 ? "hot" : s >= 65 ? "warm" : "cool";
   const logActivity = text => ACTIVITY.unshift({ when: "Just now", icon: "doc", text, caseId: null });
 
@@ -225,6 +241,18 @@
             </div>
           </div>
           <div class="card">
+            <div class="card-head"><h2>Statute Watch</h2></div>
+            <div class="check-list">
+              ${CASES.filter(x => x.stage !== "Settled").sort((a, b) => a.sol.localeCompare(b.sol)).slice(0, 4).map(x => {
+                const mo = Math.round((new Date(x.sol) - new Date(TODAY)) / 2629800000);
+                return `<div class="check-item" style="cursor:pointer" onclick="location.hash='#/case/${x.id}'">
+                  <div><div class="check-label">${esc(x.client)}</div><div class="td-sub">${esc(x.type)} · SOL ${fmtDate(x.sol)}</div></div>
+                  <span class="sol-chip ${mo <= 24 ? "sol-warn" : ""}" style="margin-left:auto">${mo <= 24 ? mo + " mo" : (mo / 12).toFixed(1) + " yr"}</span>
+                </div>`;
+              }).join("")}
+            </div>
+          </div>
+          <div class="card">
             <div class="card-head"><h2>Activity</h2></div>
             <div class="feed">
               ${ACTIVITY.slice(0, 6).map(a => `
@@ -308,7 +336,7 @@
       });
       logActivity(`New case opened: ${name}. Drive folder set and checklist created`);
       closeModal();
-      toast("Case opened. Drive folders and checklist created");
+      toast("Conflict check passed. Case opened with Drive folders and checklist");
       location.hash = "#/case/" + id;
     });
   };
@@ -325,7 +353,7 @@
       ["medicals", "Medicals"],
       ["negotiation", "Negotiation"],
       ["checklist", "Checklist"],
-      ["emails", "Emails"],
+      ["emails", "Comms"],
       ["expenses", "Expenses"],
       ["notes", "Notes"],
       ["documents", `Documents${newCount ? `<span class="tab-badge">${newCount}</span>` : ""}`]
@@ -414,11 +442,19 @@
           <div class="card">
             <div class="card-head"><h2>Details</h2></div>
             <div class="kv-grid">
-              ${[["Incident Date", fmtDate(c.incident)], ["Statute of Limitations", fmtDate(c.sol)],
-                 ["Insurer", c.insurer], ["Claim Number", c.claimNo],
-                 ["Adjuster", c.adjuster], ["Paralegal", c.paralegal],
-                 ["Client Phone", c.phone], ["Client Email", c.email]]
-                .map(([k, v]) => `<div class="kv"><div class="kv-label">${k}</div><div class="kv-value">${esc(v)}</div></div>`).join("")}
+              ${(() => {
+                const monthsLeft = Math.round((new Date(c.sol) - new Date(TODAY)) / 2629800000);
+                const solNote = monthsLeft <= 24
+                  ? ` <span class="sol-chip sol-warn">${monthsLeft} months left</span>`
+                  : ` <span class="sol-chip">${(monthsLeft / 12).toFixed(1)} years left</span>`;
+                const rows = [["Incident Date", fmtDate(c.incident)], ["Statute of Limitations", fmtDate(c.sol) + solNote],
+                  ["Insurer", esc(c.insurer)], ["Claim Number", esc(c.claimNo)],
+                  ["Adjuster", esc(c.adjuster)], ["Paralegal", esc(c.paralegal)],
+                  ["Client Phone", esc(c.phone)], ["Client Email", esc(c.email)]];
+                if (c.court) rows.push(["Court", esc(c.court.venue)], ["Judge", esc(c.court.judge)],
+                  ["Court Case No.", esc(c.court.caseNo)], ["Division", esc(c.court.division)]);
+                return rows.map(([k, v]) => `<div class="kv"><div class="kv-label">${k}</div><div class="kv-value">${v}</div></div>`).join("");
+              })()}
             </div>
           </div>
           <div class="card">
@@ -447,6 +483,16 @@
               </div>`).join("") || `<div class="empty-state">All caught up.</div>`}
             </div>
           </div>
+          <div class="card">
+            <div class="card-head"><h2>Related Contacts</h2></div>
+            <div class="check-list">
+              ${relatedContacts(c).map(x => `<div class="check-item" style="cursor:pointer" onclick="location.hash='#/contacts'">
+                <div class="avatar" style="width:30px;height:30px;font-size:11px;background:var(--ink)">${esc(x.name.split(" ").map(w => w[0]).slice(0, 2).join(""))}</div>
+                <div><div class="check-label">${esc(x.name)}</div><div class="td-sub">${esc(x.rel)}</div></div>
+                <span class="check-due">${esc(x.phone)}</span>
+              </div>`).join("") || `<div class="empty-state">No linked contacts yet.</div>`}
+            </div>
+          </div>
         </div>
       </div>`;
     }
@@ -470,13 +516,28 @@
     }
 
     if (tab === "negotiation") {
-      return `<div class="card">
-        <div class="card-head"><h2>Demand and Offer History</h2><button class="btn btn-ghost btn-sm" onclick="aiDemand('${c.id}')">AI Demand Draft</button></div>
-        ${c.negotiation.length ? c.negotiation.map(n => `<div class="neg-item">
-          <div class="neg-amount money">${money(n.amount)}</div>
-          <div><div class="neg-kind ${n.kind.toLowerCase()}">${n.kind} · ${esc(n.party)}</div><div class="neg-note">${esc(n.note)}</div></div>
-          <div class="neg-date">${fmtDate(n.date)}</div>
-        </div>`).join("") : `<div class="empty-state">No demand sent yet. This case is still in ${c.stage.toLowerCase()}.</div>`}
+      const bestOffer = Math.max(...c.negotiation.filter(n => n.kind === "Offer" || n.kind === "Settlement").map(n => n.amount), 0);
+      const gross = bestOffer || c.estValue;
+      return `<div class="case-grid">
+        <div class="card">
+          <div class="card-head"><h2>Demand and Offer History</h2><button class="btn btn-ghost btn-sm" onclick="aiDemand('${c.id}')">AI Demand Draft</button></div>
+          ${c.negotiation.length ? c.negotiation.map(n => `<div class="neg-item">
+            <div class="neg-amount money">${money(n.amount)}</div>
+            <div><div class="neg-kind ${n.kind.toLowerCase()}">${n.kind} · ${esc(n.party)}</div><div class="neg-note">${esc(n.note)}</div></div>
+            <div class="neg-date">${fmtDate(n.date)}</div>
+          </div>`).join("") : `<div class="empty-state">No demand sent yet. This case is still in ${c.stage.toLowerCase()}.</div>`}
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Settlement Calculator</h2></div>
+          <div class="calc" data-case="${c.id}">
+            <label class="calc-gross">If it settles at
+              <input id="calcGross" type="text" inputmode="numeric" value="${gross.toLocaleString("en-US")}">
+            </label>
+            <input id="calcSlider" type="range" min="0" max="${Math.max(gross * 2, 100000)}" step="1000" value="${gross}">
+            <div class="calc-rows" id="calcRows"></div>
+            <div class="ai-foot">Attorney fee ${c.type === "Workers Comp" ? "25 percent (workers comp)" : "33.3 percent pre-litigation"}. Liens shown after a typical 35 percent negotiated reduction. Funds are held in the firm's trust account until disbursement, and the client sees this exact math on the settlement statement.</div>
+          </div>
+        </div>
       </div>`;
     }
 
@@ -494,17 +555,29 @@
     }
 
     if (tab === "emails") {
-      return `<div class="card">
-        <div class="card-head"><h2>Emails</h2><span class="drive-note">${I.mail} Pulled from Outlook and matched to this file automatically</span></div>
-        ${c.emails.slice().sort((a, b) => b.date.localeCompare(a.date)).map(e => `<div class="email">
-          <div class="email-top">
-            <span class="email-from">${esc(e.from)}</span>
-            <span class="email-date">${fmtDate(e.date)}</span>
+      return `<div class="dash-col">
+        ${c.texts ? `<div class="card">
+          <div class="card-head"><h2>Text Messages</h2><span class="drive-note">${I.chat} Two-way texting from the firm's number, logged to the file</span></div>
+          <div class="sms-thread">
+            ${c.texts.map(t => `<div class="sms ${t.from === "firm" ? "sms-firm" : "sms-client"}">
+              <div class="sms-bubble">${esc(t.text)}</div>
+              <div class="sms-when">${t.from === "firm" ? "Firm" : esc(c.client.split(" ")[0])} · ${esc(t.when)}</div>
+            </div>`).join("")}
+            <div class="sms-compose"><input type="text" placeholder="Text ${esc(c.client.split(" ")[0])} from (314) 208-2808" id="smsInput"><button class="btn btn-primary btn-sm" id="smsSend" data-case="${c.id}">Send</button></div>
           </div>
-          <div class="email-subject">${esc(e.subject)}</div>
-          <div class="email-body">${esc(e.body)}</div>
-          ${e.filed ? `<div class="email-filed">${I.folder}<span>Attachment filed to ${esc(e.filed)}</span></div>` : ""}
-        </div>`).join("") || `<div class="empty-state">No emails matched to this file yet.</div>`}
+        </div>` : ""}
+        <div class="card">
+          <div class="card-head"><h2>Emails</h2><span class="drive-note">${I.mail} Pulled from Outlook and matched to this file automatically</span></div>
+          ${c.emails.slice().sort((a, b) => b.date.localeCompare(a.date)).map(e => `<div class="email">
+            <div class="email-top">
+              <span class="email-from">${esc(e.from)}</span>
+              <span class="email-date">${fmtDate(e.date)}</span>
+            </div>
+            <div class="email-subject">${esc(e.subject)}</div>
+            <div class="email-body">${esc(e.body)}</div>
+            ${e.filed ? `<div class="email-filed">${I.folder}<span>Attachment filed to ${esc(e.filed)}</span></div>` : ""}
+          </div>`).join("") || `<div class="empty-state">No emails matched to this file yet.</div>`}
+        </div>
       </div>`;
     }
 
@@ -1085,6 +1158,40 @@
         toast(a.on ? `"${a.name}" is back on` : `"${a.name}" paused`);
         route();
       });
+    });
+    const calc = document.querySelector(".calc");
+    if (calc) {
+      const c = caseById(calc.dataset.case);
+      const feeRate = c.type === "Workers Comp" ? 0.25 : 1 / 3;
+      const expenses = c.expenses.reduce((s, e) => s + e.amount, 0);
+      const liens = Math.round(c.medicals.reduce((s, m) => s + m.lien, 0) * 0.65);
+      const grossInput = $("#calcGross"), slider = $("#calcSlider");
+      const update = gross => {
+        const fee = Math.round(gross * feeRate);
+        const net = Math.max(0, gross - fee - expenses - liens);
+        $("#calcRows").innerHTML = [
+          ["Gross settlement", money(gross), ""],
+          ["Attorney fee", "- " + money(fee), ""],
+          ["Case expenses advanced", "- " + money(expenses), ""],
+          ["Liens after reduction", "- " + money(liens), ""],
+          ["Net to " + c.client.split(" ")[0], money(net), "calc-net"]
+        ].map(([k, v, cls]) => `<div class="calc-row ${cls}"><span>${k}</span><strong class="money">${v}</strong></div>`).join("");
+      };
+      const parse = () => parseInt(grossInput.value.replace(/[^0-9]/g, ""), 10) || 0;
+      grossInput.addEventListener("input", () => { const g = parse(); slider.value = g; update(g); });
+      slider.addEventListener("input", () => { grossInput.value = (+slider.value).toLocaleString("en-US"); update(+slider.value); });
+      update(parse());
+    }
+    const sms = $("#smsSend");
+    if (sms) sms.addEventListener("click", () => {
+      const c = caseById(sms.dataset.case);
+      const input = $("#smsInput");
+      const text = input.value.trim();
+      if (!text) return;
+      c.texts.push({ from: "firm", text, when: "Just now" });
+      logActivity(`Text sent to ${c.client}`);
+      route();
+      toast("Text sent and logged to the file");
     });
     if (parts[0] === "leads") bindLeads();
     if (parts[0] === "contacts") bindContacts();

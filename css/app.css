@@ -943,6 +943,87 @@ tbody tr:last-child td { border-bottom: none; }
 .mini-btn:hover { border-color: var(--orange); color: var(--orange); }
 .mini-btn.danger:hover { border-color: var(--red); color: var(--red); }
 
+/* ---------- SOL chip ---------- */
+
+.sol-chip {
+  display: inline-block;
+  font-size: 10.5px; font-weight: 700;
+  border-radius: 5px; padding: 1px 7px;
+  background: var(--green-soft); color: var(--green);
+  vertical-align: 1px;
+}
+.sol-chip.sol-warn { background: var(--red-soft); color: var(--red); }
+
+/* ---------- Settlement calculator ---------- */
+
+.calc { padding: 16px 18px 18px; }
+
+.calc-gross {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+}
+.calc-gross input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font-head);
+  font-size: 19px;
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+}
+.calc-gross input:focus { border-color: var(--orange); }
+
+.calc input[type="range"] {
+  width: 100%;
+  margin: 14px 0 6px;
+  accent-color: var(--orange);
+}
+
+.calc-rows { margin-top: 8px; }
+.calc-row {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 8px 2px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line);
+}
+.calc-row.calc-net { border-bottom: none; font-size: 15px; }
+.calc-row.calc-net strong { color: var(--green); font-family: var(--font-head); font-size: 19px; }
+
+/* ---------- SMS thread ---------- */
+
+.sms-thread { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+.sms { max-width: 78%; }
+.sms-firm { align-self: flex-end; text-align: right; }
+.sms-client { align-self: flex-start; }
+
+.sms-bubble {
+  display: inline-block;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-align: left;
+}
+.sms-firm .sms-bubble { background: var(--orange); color: #fff; border-bottom-right-radius: 4px; }
+.sms-client .sms-bubble { background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.sms-when { font-size: 11px; color: var(--faint); margin-top: 3px; }
+
+.sms-compose { display: flex; gap: 8px; margin-top: 8px; }
+.sms-compose input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 15px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+.sms-compose input:focus { border-color: var(--orange); }
+.sms-compose .btn { border-radius: 999px; }
+
 /* ---------- Leads drag ---------- */
 
 .lead-card[draggable] { user-select: none; }
