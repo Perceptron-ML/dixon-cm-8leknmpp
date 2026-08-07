@@ -1004,6 +1004,23 @@ tbody tr:last-child td { border-bottom: none; }
 .calc-row.calc-net { border-bottom: none; font-size: 15px; }
 .calc-row.calc-net strong { color: var(--green); font-family: var(--font-head); font-size: 19px; }
 
+.strike { text-decoration: line-through; color: var(--faint); }
+
+.scen-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.scen {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  padding: 5px 11px;
+  font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.scen span { color: var(--green); }
+.scen:hover { border-color: var(--orange); }
+.scen-x { color: var(--faint) !important; font-weight: 700; padding-left: 2px; }
+.scen-x:hover { color: var(--red) !important; }
+
 /* ---------- SMS thread ---------- */
 
 .sms-thread { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }

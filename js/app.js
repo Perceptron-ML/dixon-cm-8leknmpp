@@ -562,18 +562,37 @@
     if (tab === "medicals") {
       const billed = c.medicals.reduce((s, m) => s + m.billed, 0);
       const liens = c.medicals.reduce((s, m) => s + m.lien, 0);
-      return `<div class="card">
-        <div class="card-head"><h2>Treatment and Records</h2><button class="btn btn-ghost btn-sm" onclick="reqRecords('${c.id}')">Request Records</button></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Provider</th><th>Records Status</th><th>Billed</th><th>Lien</th></tr></thead>
-          <tbody>${c.medicals.map(m => `<tr>
-            <td class="td-main">${esc(m.provider)}</td>
-            <td><span class="med-status ms-${m.status.toLowerCase()}">${m.status}</span></td>
-            <td class="money">${money(m.billed)}</td>
-            <td class="money">${m.lien ? money(m.lien) : "None"}</td>
-          </tr>`).join("") || `<tr><td colspan="4" class="empty-state">No providers yet.</td></tr>`}</tbody>
-        </table></div>
-        <div class="table-foot"><span>Total billed: <strong class="money">${money(billed)}</strong></span><span>Total liens: <strong class="money">${money(liens)}</strong></span></div>
+      const lienOrig = c.lienLedger.reduce((s, l) => s + l.original, 0);
+      const lienCur = c.lienLedger.reduce((s, l) => s + l.current, 0);
+      const lienStatus = { Asserted: "ms-received", Negotiating: "ms-requested", Reduced: "ms-complete" };
+      return `<div class="dash-col">
+        <div class="card">
+          <div class="card-head"><h2>Treatment and Records</h2><button class="btn btn-ghost btn-sm" onclick="reqRecords('${c.id}')">Request Records</button></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Provider</th><th>Records Status</th><th>Billed</th><th>Lien</th></tr></thead>
+            <tbody>${c.medicals.map(m => `<tr>
+              <td class="td-main">${esc(m.provider)}</td>
+              <td><span class="med-status ms-${m.status.toLowerCase()}">${m.status}</span></td>
+              <td class="money">${money(m.billed)}</td>
+              <td class="money">${m.lien ? money(m.lien) : "None"}</td>
+            </tr>`).join("") || `<tr><td colspan="4" class="empty-state">No providers yet.</td></tr>`}</tbody>
+          </table></div>
+          <div class="table-foot"><span>Total billed: <strong class="money">${money(billed)}</strong></span><span>Total liens: <strong class="money">${money(liens)}</strong></span></div>
+        </div>
+        ${c.lienLedger.length ? `<div class="card">
+          <div class="card-head"><h2>Lien Negotiation</h2><span class="drive-note">Feeds the settlement calculator automatically</span></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Lienholder</th><th>Original</th><th>Current</th><th>Status</th><th>Latest</th></tr></thead>
+            <tbody>${c.lienLedger.map(l => `<tr>
+              <td class="td-main">${esc(l.holder)}</td>
+              <td class="money ${l.current < l.original ? "strike" : ""}">${money(l.original)}</td>
+              <td class="money" style="font-weight:600">${money(l.current)}</td>
+              <td><span class="med-status ${lienStatus[l.status]}">${l.status}</span></td>
+              <td style="white-space:normal;max-width:300px"><div style="font-size:12.5px">${esc(l.note)}</div><div class="td-sub">${fmtDate(l.date)}</div></td>
+            </tr>`).join("")}</tbody>
+          </table></div>
+          <div class="table-foot"><span>Asserted: <strong class="money">${money(lienOrig)}</strong></span><span>Current: <strong class="money">${money(lienCur)}</strong></span><span style="color:var(--green)">Negotiated off so far: <strong class="money">${money(lienOrig - lienCur)}</strong></span></div>
+        </div>` : ""}
       </div>`;
     }
 
@@ -590,14 +609,15 @@
           </div>`).join("") : `<div class="empty-state">No demand sent yet. This case is still in ${c.stage.toLowerCase()}.</div>`}
         </div>
         <div class="card">
-          <div class="card-head"><h2>Settlement Calculator</h2></div>
+          <div class="card-head"><h2>Settlement Calculator</h2><button class="btn btn-ghost btn-sm" id="calcSave">Save Scenario</button></div>
           <div class="calc" data-case="${c.id}">
             <label class="calc-gross">If it settles at
               <input id="calcGross" type="text" inputmode="numeric" value="${gross.toLocaleString("en-US")}">
             </label>
             <input id="calcSlider" type="range" min="0" max="${Math.max(gross * 2, 100000)}" step="1000" value="${gross}">
             <div class="calc-rows" id="calcRows"></div>
-            <div class="ai-foot">Attorney fee ${c.type === "Workers Comp" ? "25 percent (workers comp)" : "33.3 percent pre-litigation"}. Liens shown after a typical 35 percent negotiated reduction. Funds are held in the firm's trust account until disbursement, and the client sees this exact math on the settlement statement.</div>
+            <div class="scen-row" id="scenRow"></div>
+            <div class="ai-foot">Attorney fee ${c.type === "Workers Comp" ? "25 percent (workers comp)" : "33.3 percent pre-litigation"}. The lien line pulls live from this case's lien ledger${c.lienLedger.some(l => l.current < l.original) ? ", already reflecting negotiated reductions" : ""}. Funds are held in the firm's trust account until disbursement, and the client sees this exact math on the settlement statement.</div>
           </div>
         </div>
       </div>`;
@@ -1239,23 +1259,46 @@
       const c = caseById(calc.dataset.case);
       const feeRate = c.type === "Workers Comp" ? 0.25 : 1 / 3;
       const expenses = c.expenses.reduce((s, e) => s + e.amount, 0);
-      const liens = Math.round(c.medicals.reduce((s, m) => s + m.lien, 0) * 0.65);
+      const liens = c.lienLedger.reduce((s, l) => s + l.current, 0);
       const grossInput = $("#calcGross"), slider = $("#calcSlider");
-      const update = gross => {
+      if (!c.scenarios) c.scenarios = [];
+      const compute = gross => {
         const fee = Math.round(gross * feeRate);
-        const net = Math.max(0, gross - fee - expenses - liens);
+        return { gross, fee, net: Math.max(0, gross - fee - expenses - liens) };
+      };
+      const update = gross => {
+        const { fee, net } = compute(gross);
         $("#calcRows").innerHTML = [
           ["Gross settlement", money(gross), ""],
           ["Attorney fee", "- " + money(fee), ""],
           ["Case expenses advanced", "- " + money(expenses), ""],
-          ["Liens after reduction", "- " + money(liens), ""],
+          ["Liens (current ledger)", "- " + money(liens), ""],
           ["Net to " + c.client.split(" ")[0], money(net), "calc-net"]
         ].map(([k, v, cls]) => `<div class="calc-row ${cls}"><span>${k}</span><strong class="money">${v}</strong></div>`).join("");
       };
       const parse = () => parseInt(grossInput.value.replace(/[^0-9]/g, ""), 10) || 0;
+      const renderScens = () => {
+        $("#scenRow").innerHTML = c.scenarios.map((s, i) =>
+          `<button class="scen" data-scen="${i}">${money(s.gross)} <span>nets ${money(s.net)}</span><span class="scen-x" data-scenx="${i}">×</span></button>`).join("");
+        document.querySelectorAll("[data-scen]").forEach(b => b.addEventListener("click", e => {
+          if (e.target.dataset.scenx !== undefined) { c.scenarios.splice(+e.target.dataset.scenx, 1); renderScens(); return; }
+          const s = c.scenarios[+b.dataset.scen];
+          grossInput.value = s.gross.toLocaleString("en-US");
+          slider.value = s.gross;
+          update(s.gross);
+        }));
+      };
       grossInput.addEventListener("input", () => { const g = parse(); slider.value = g; update(g); });
       slider.addEventListener("input", () => { grossInput.value = (+slider.value).toLocaleString("en-US"); update(+slider.value); });
+      const save = $("#calcSave");
+      if (save) save.addEventListener("click", () => {
+        if (c.scenarios.length >= 4) c.scenarios.shift();
+        c.scenarios.push(compute(parse()));
+        renderScens();
+        toast("Scenario saved. Click a chip to compare");
+      });
       update(parse());
+      renderScens();
     }
     const sms = $("#smsSend");
     if (sms) sms.addEventListener("click", () => {

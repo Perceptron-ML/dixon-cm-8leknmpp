@@ -58,6 +58,14 @@
       ];
     }
 
+    /* lien ledger defaults */
+    if (!c.lienLedger) {
+      c.lienLedger = c.medicals.filter(m => m.lien > 0).map(m => ({
+        holder: m.provider, original: m.lien, current: m.lien,
+        status: "Asserted", note: "Lien letter on file", date: addDays(c.opened, 45)
+      }));
+    }
+
     /* expenses */
     if (!c.expenses) {
       c.expenses = [];

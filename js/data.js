@@ -502,6 +502,18 @@ const CASES = [
 CASES[4].court = { venue: "St. Louis County Circuit Court", judge: "Hon. Patricia Grimes", caseNo: "26SL-CC02841", division: "Division 14" };
 CASES[12].court = { venue: "City of St. Louis Circuit Court", judge: "Hon. Marcus Bell", caseNo: "2622-CC00917", division: "Division 6" };
 
+/* Lien negotiation ledgers (other cases get an "Asserted" default in enrich.js) */
+CASES[0].lienLedger = [
+  { holder: "Gateway Spine & Rehab", original: 12800, current: 8960, status: "Negotiating", note: "Requested 30 percent reduction, verbal agreement pending letter", date: "2026-08-03" },
+  { holder: "Dr. Alan Hurst, Orthopedics", original: 9600, current: 9600, status: "Asserted", note: "Lien letter on file, negotiate once the settlement range firms up", date: "2026-07-12" }
+];
+CASES[6].lienLedger = [
+  { holder: "BJC Christian Hospital", original: 72000, current: 51000, status: "Negotiating", note: "Hospital countered at $51,000 against our $43,200 ask", date: "2026-07-30" }
+];
+CASES[15].lienLedger = [
+  { holder: "Mercy Hospital South", original: 76000, current: 49400, status: "Reduced", note: "Final reduction letter received, paid at disbursement", date: "2026-07-10" }
+];
+
 /* Two-way client texting thread for the featured case */
 CASES[0].texts = [
   { from: "firm", text: "Hi Marcus, State Farm sent a revised offer of $98,000. Chris would like to walk you through it. Does Thursday at 10 AM work for a call?", when: "Aug 4, 2:12 PM" },
