@@ -403,7 +403,7 @@
         toast("Note saved to the file");
       }
       closeModal();
-      route();
+      refresh();
     });
   };
 
@@ -427,7 +427,7 @@
       logActivity(`${t[0]} generated for ${c.client} and filed to ${t[1]}`);
       closeModal();
       toast(t[0] + " drafted and filed to Drive");
-      route();
+      refresh();
     }));
   };
 
@@ -616,7 +616,7 @@
       c.docs.unshift({ folder: "02 Medical Records", name: `Records request follow-up - ${m.provider}.pdf`, date: TODAY, isNew: true, ai: "Follow-up request generated and sent. Response window tracked automatically." });
     });
     toast(pending.length ? `Follow-up requests sent to ${pending.length} provider${pending.length > 1 ? "s" : ""}` : "All records are in or already requested");
-    route();
+    refresh();
   };
 
   window.aiDemand = function (id) {
@@ -665,6 +665,9 @@
     </div>`;
   }
 
+  let docLimit = 15;
+  window.loadMoreDocs = function () { docLimit += 20; refresh(); };
+
   function viewDocuments() {
     const docs = allDocs().slice().sort((a, b) => b.date.localeCompare(a.date));
     return `
@@ -674,7 +677,7 @@
       </div>
       <div class="card">
         <div class="feed">
-          ${docs.slice(0, 40).map(d => `<div class="feed-item" onclick="openDoc('${d.caseId}','${esc(d.name)}')">
+          ${docs.slice(0, docLimit).map(d => `<div class="feed-item" onclick="openDoc('${d.caseId}','${esc(d.name)}')">
             <div class="file-icon ${d.name.endsWith(".docx") ? "docx" : ""}">${I.doc}</div>
             <div class="feed-body">
               <div class="file-name">${esc(d.name)}${d.isNew ? '<span class="new-pill">NEW</span>' : ""}</div>
@@ -683,6 +686,7 @@
             </div>
           </div>`).join("")}
         </div>
+        ${docs.length > docLimit ? `<div class="doc-sentinel" id="docSentinel" onclick="loadMoreDocs()">Show ${Math.min(20, docs.length - docLimit)} more of ${docs.length - docLimit} older files</div>` : ""}
       </div>`;
   }
 
@@ -732,7 +736,7 @@
         if (lead && lead.status !== col.dataset.col) {
           lead.status = col.dataset.col;
           toast(`${lead.name} moved to ${col.dataset.col}`);
-          route();
+          refresh();
         }
       });
     });
@@ -742,7 +746,7 @@
       lead.status = "Signed";
       logActivity(`Lead converted: ${lead.name} signed. Case and Drive folders created`);
       toast(`${lead.name} signed. Case opened with Drive folders and checklist`);
-      route();
+      refresh();
     }));
   }
 
@@ -992,7 +996,7 @@
       if (idx >= 0) CONTACTS[idx] = rec; else CONTACTS.push(rec);
       closeModal();
       toast(idx >= 0 ? "Contact updated" : rec.name + " added to contacts");
-      route();
+      refresh();
     });
   }
 
@@ -1001,7 +1005,7 @@
     if (el) el.addEventListener("input", () => {
       contactQuery = el.value;
       const pos = el.selectionStart;
-      route();
+      refresh();
       const el2 = $("#contactSearch");
       el2.focus(); el2.setSelectionRange(pos, pos);
     });
@@ -1021,8 +1025,8 @@
     document.querySelectorAll("[data-delc]").forEach(b => b.addEventListener("click", () => {
       const idx = +b.dataset.delc;
       const removed = CONTACTS.splice(idx, 1)[0];
-      route();
-      toast(removed.name + " deleted", { undo: () => { CONTACTS.splice(idx, 0, removed); route(); } });
+      refresh();
+      toast(removed.name + " deleted", { undo: () => { CONTACTS.splice(idx, 0, removed); refresh(); } });
     }));
   }
 
@@ -1090,11 +1094,16 @@
 
   /* ---------- router ---------- */
 
-  function route() {
+  /* route() = real navigation: animate in, scroll to top, close modals.
+     refresh() = in-place update after a state change: no animation, keep scroll. */
+  function route() { render(true); }
+  function refresh() { render(false); }
+
+  function render(navigated) {
     const hash = location.hash || "#/dashboard";
     const parts = hash.slice(2).split("/");
     const view = $("#view");
-    closeModal();
+    if (navigated) { closeModal(); if (parts[0] === "documents") docLimit = 15; }
     renderNav(hash);
     let html = "";
     if (parts[0] === "dashboard" || !parts[0]) html = viewDashboard();
@@ -1108,15 +1117,16 @@
     else if (parts[0] === "automations") html = viewAutomations();
     else if (parts[0] === "contacts") html = viewContacts();
     else html = viewDashboard();
-    view.innerHTML = `<div class="view-enter">${html}</div>`;
-    view.scrollTop = 0;
+    const scroll = view.scrollTop;
+    view.innerHTML = `<div class="${navigated ? "view-enter" : ""}">${html}</div>`;
+    view.scrollTop = navigated ? 0 : scroll;
     bindView(parts);
   }
   window.route = route;
 
   function bindView(parts) {
     document.querySelectorAll(".chip[data-stage]").forEach(ch => {
-      ch.addEventListener("click", () => { caseFilter = ch.dataset.stage; route(); });
+      ch.addEventListener("click", () => { caseFilter = ch.dataset.stage; refresh(); });
     });
     document.querySelectorAll(".tab[data-tab]").forEach(t => {
       t.addEventListener("click", () => {
@@ -1125,7 +1135,7 @@
       });
     });
     document.querySelectorAll(".folder[data-folder]").forEach(f => {
-      f.addEventListener("click", () => { activeFolder = f.dataset.folder || null; route(); });
+      f.addEventListener("click", () => { activeFolder = f.dataset.folder || null; refresh(); });
     });
     document.querySelectorAll(".check-item.clickable").forEach(k => {
       k.addEventListener("click", () => {
@@ -1133,7 +1143,7 @@
         const item = c.checklist[+k.dataset.check];
         item.done = !item.done;
         if (item.done) { item.date = TODAY; toast("Checked off: " + item.label); }
-        route();
+        refresh();
       });
     });
     document.querySelectorAll(".path-step[data-move]").forEach(p => {
@@ -1146,17 +1156,20 @@
         c.stage = STAGES[+idx];
         const forward = +idx > STAGES.indexOf(prev);
         logActivity(`${c.client} moved to ${c.stage}${forward ? ". Stage checklist assigned" : ""}`);
-        route();
+        refresh();
         toast(`Moved to ${c.stage}${forward && STAGES.indexOf(prev) + 1 === +idx ? ". Stage tasks assigned automatically" : ""}`,
-          { undo: () => { c.stage = prev; route(); toast("Moved back to " + prev); } });
+          { undo: () => { c.stage = prev; refresh(); toast("Moved back to " + prev); } });
       });
     });
     document.querySelectorAll(".switch[data-auto]").forEach(sw => {
       sw.addEventListener("click", () => {
         const a = AUTOMATIONS[+sw.dataset.auto];
         a.on = !a.on;
+        sw.classList.toggle("on", a.on);
+        sw.setAttribute("aria-checked", a.on);
+        const runs = sw.closest(".auto-card").querySelector(".auto-runs");
+        if (runs) runs.textContent = a.on ? `Ran ${a.runs} time${a.runs === 1 ? "" : "s"} this week` : "Paused";
         toast(a.on ? `"${a.name}" is back on` : `"${a.name}" paused`);
-        route();
       });
     });
     const calc = document.querySelector(".calc");
@@ -1190,15 +1203,29 @@
       if (!text) return;
       c.texts.push({ from: "firm", text, when: "Just now" });
       logActivity(`Text sent to ${c.client}`);
-      route();
+      refresh();
       toast("Text sent and logged to the file");
     });
+    const sentinel = $("#docSentinel");
+    if (sentinel) {
+      const v = $("#view");
+      const check = () => {
+        if (!document.contains(sentinel)) { v.removeEventListener("scroll", check); return; }
+        if (sentinel.getBoundingClientRect().top < v.getBoundingClientRect().bottom + 300) {
+          v.removeEventListener("scroll", check);
+          docLimit += 20;
+          refresh();
+        }
+      };
+      v.addEventListener("scroll", check, { passive: true });
+      check();
+    }
     if (parts[0] === "leads") bindLeads();
     if (parts[0] === "contacts") bindContacts();
     if (parts[0] === "calendar") {
       const prev = $("#calPrev"), next = $("#calNext");
-      if (prev) prev.addEventListener("click", () => { if (calMonth > 7) { calMonth--; route(); } });
-      if (next) next.addEventListener("click", () => { if (calMonth < 9) { calMonth++; route(); } });
+      if (prev) prev.addEventListener("click", () => { if (calMonth > 7) { calMonth--; refresh(); } });
+      if (next) next.addEventListener("click", () => { if (calMonth < 9) { calMonth++; refresh(); } });
     }
     if (parts[0] === "reports") {
       const b = $("#exportReport");
