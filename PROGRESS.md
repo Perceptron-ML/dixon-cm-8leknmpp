@@ -106,15 +106,22 @@ lien negotiation history, referral fee tracking, document versioning.
   documents feed lazy loads 15+20 with clickable sentinel, cache-busted assets
   (bump ?v= on each deploy).
 
+### Iteration 5 (2026-08-07)
+- Lien Negotiation card on Medicals: per-lien original (struck through when
+  reduced), current, status pill (Asserted/Negotiating/Reduced), latest note,
+  "negotiated off so far" total. Hand-written ledgers for Reed, O'Donnell,
+  Delgado; enrich.js gives every liened case an Asserted default.
+- Settlement calculator now pulls the LIVE lien ledger total instead of a flat
+  65 percent estimate, and notes when reductions are already reflected.
+- Saved scenarios: Save Scenario chips ("$125,000 nets $64,496"), click to
+  reload, x to remove, keeps last 4 (Litify compare pattern).
+
 ## Next candidates (ranked, informed by PI research report 4)
-1. Lien negotiation ledger: per-lien history (original, offers, final reduced)
-   feeding the settlement calculator automatically.
-3. Litify-style saved settlement scenarios: save 2-3 calculator states and
-   compare side by side.
-4. Drive two-way: "Upload to folder" drop zone in case Documents; document
+1. Drive two-way: "Upload to folder" drop zone in case Documents; document
    versioning row states.
-5. Reports: referral-source ROI + print stylesheet for Export PDF.
-6. Command-K palette / keyboard shortcuts; mobile pass below 820px.
+2. Reports: referral-source ROI + print stylesheet for Export PDF.
+3. Command-K palette / keyboard shortcuts; mobile pass below 820px.
+4. Portal link in the automations story (portal updates as a recipe card).
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but
