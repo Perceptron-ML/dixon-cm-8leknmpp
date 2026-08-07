@@ -196,6 +196,7 @@
       closeModal();
       refresh();
       toast(`Sent to ${c.client} for e-signature. You will be notified when it is signed`);
+      simulateSignature(c, d);
     });
   };
 
@@ -566,7 +567,7 @@
     document.querySelectorAll(".tpl").forEach(b => b.addEventListener("click", () => {
       const t = templates[+b.dataset.tpl];
       const doc = { folder: t[1], name: `${t[2]} - ${c.client.split(" ").slice(-1)[0]}.docx`, date: TODAY, isNew: true, ai: `${t[0]} generated from case data: parties, ${c.medicals.length} providers, and the ${c.insurer} claim. Ready for attorney review.` };
-      if (t[3]) { doc.sig = "pending"; doc.ai = `Generated from case data and sent to ${c.client} for e-signature. Status tracked here.`; }
+      if (t[3]) { doc.sig = "pending"; doc.ai = `Generated from case data and sent to ${c.client} for e-signature. Status tracked here.`; simulateSignature(c, doc); }
       c.docs.unshift(doc);
       logActivity(`${t[0]} generated for ${c.client} and filed to ${t[1]}`);
       closeModal();
@@ -1003,6 +1004,20 @@
     }, "Add Task");
   };
 
+  /* the demo moment: the client "signs" a few seconds after you send it */
+  function simulateSignature(c, d) {
+    setTimeout(() => {
+      if (d.sig !== "pending") return;
+      d.sig = "signed";
+      d.ai = `Signed electronically by ${c.client}. Executed copy filed to ${d.folder} automatically.`;
+      logActivity(`${c.client} signed ${d.name}. Executed copy filed to Drive`);
+      const bell = $("#notifBtn .dot");
+      if (bell) bell.style.display = "block";
+      refresh();
+      toast(`${c.client} just signed ${d.name}`);
+    }, 9000);
+  }
+
   window.reqRecords = function (id) {
     const c = caseById(id);
     const pending = c.medicals.filter(m => m.status === "Requested");
@@ -1246,6 +1261,11 @@
     for (let d = 1; d <= daysIn; d++) cells.push(d);
     while (cells.length % 7) cells.push(null);
     const kindColor = { Deadline: "red", Deposition: "purple", Mediation: "purple", Call: "blue", Consult: "green", Meeting: "blue", Internal: "gray", Exam: "amber" };
+    /* checklist due dates surface automatically; skip days where the case already has a hand-set event */
+    const autoEvents = CASES.flatMap(c => c.checklist
+      .filter(k => !k.done && k.due && !EVENTS.some(e => e.caseId === c.id && e.date === k.due))
+      .map(k => ({ date: k.due, time: "All day", title: `${c.client.split(" ").slice(-1)[0]}: ${k.label}`, kind: "Deadline", caseId: c.id })));
+    const allEvents = [...EVENTS, ...autoEvents];
 
     return `
       <div class="page-head">
@@ -1265,7 +1285,7 @@
           ${cells.map(d => {
             if (!d) return `<div class="cal-cell cal-empty"></div>`;
             const iso = `${year}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-            const evts = EVENTS.filter(e => e.date === iso);
+            const evts = allEvents.filter(e => e.date === iso);
             return `<div class="cal-cell ${iso === TODAY ? "cal-today" : ""}">
               <span class="cal-day">${d}</span>
               ${evts.map(e => `<div class="cal-evt evt-${kindColor[e.kind] || "gray"}" ${e.caseId ? `onclick="location.hash='#/case/${e.caseId}'"` : ""} title="${esc(e.title)}">${esc(e.title)}</div>`).join("")}

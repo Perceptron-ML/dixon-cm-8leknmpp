@@ -160,11 +160,21 @@ lien negotiation history, referral fee tracking, document versioning.
   QuickBooks posting, build console execution.
 - All flows verified via scripted browser tests; zero console errors.
 
+### Iteration 8 (2026-08-07)
+- E-signature lifecycle complete: 9 seconds after sending (viewer button or the
+  e-sign template), the doc flips Awaiting signature -> green Signed pill, the
+  AI summary updates to "Signed electronically by <client>", activity logs, and
+  a toast announces it. The demo moment: send it, keep talking, it signs.
+- Calendar auto-surfaces every open checklist due date as a Deadline event
+  (skipping days where the case already has a hand-set event). August went from
+  9 events to a realistically busy month.
+- Verified: pending -> signed transition scripted test, calendar density
+  screenshot, zero console errors.
+
 ## Next candidates
-1. Signed-state transition demo (automation flips Awaiting to Signed).
-2. Calendar: include checklist due dates as auto events.
-3. Portal: messages thread synced with Comms texts.
-4. Editable notes (edit/delete existing notes).
+1. Portal: messages thread synced with Comms texts.
+2. Editable notes (edit/delete existing notes).
+3. Leads: add a New Lead button (manual intake) + lead detail view.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but
