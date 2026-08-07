@@ -171,10 +171,28 @@ lien negotiation history, referral fee tracking, document versioning.
 - Verified: pending -> signed transition scripted test, calendar density
   screenshot, zero console errors.
 
-## Next candidates
-1. Portal: messages thread synced with Comms texts.
-2. Editable notes (edit/delete existing notes).
-3. Leads: add a New Lead button (manual intake) + lead detail view.
+### Iteration 9 (2026-08-07) - calendar day view + lawyer wishlist batch 1
+- Calendar: uniform 118px cells, max 2 chips + "+N more", click any day for a
+  full day modal (kind pills, case links, times, Add Event This Day prefilled).
+- Lawyer wishlist items 1-5 built: recent cases on search focus; call (tel:)
+  and text quick buttons in the case header; medical specials total in the
+  case header meta; stale-file detection (Last Activity column with red
+  "Needs attention" past 21 quiet days + dashboard Needs Attention card);
+  pin/star cases to the top of the table.
+- All verified by scripted browser checks; zero console errors.
+
+## Next candidates (lawyer wishlist, continue in order)
+6. Unified case timeline tab (docs + notes + emails + texts + stage moves).
+7. One-page case summary export (print stylesheet route per case).
+8. Policy limits + UM/UIM fields on Details.
+9. Treatment gap warning (no treatment logged in 30 days).
+10. Snooze buttons on My Tasks rows (+3d, +1w).
+11. Note-to-task conversion ("@Dana" in a note creates an assigned task).
+12. Bulk actions on cases table. 13. Duplicate-client warning on New Case.
+14. Preferred contact + language fields. 15. Referral fee share per case.
+16. Court appearances view. 17. Conflict check shows matched names.
+18. "Last touched by" on case header. 19. Keyboard nav on tables.
+20. Calendar week view. Then: portal texts sync, editable notes, New Lead.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but

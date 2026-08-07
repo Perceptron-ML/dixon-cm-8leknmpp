@@ -36,6 +36,7 @@
     sig: S + '<path d="M2 20c2-2 3-6 5-6s2 4 4 4 3-8 5-8 2 6 4 6 2-2 2-2"/></svg>',
     upload: S + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 8 5-5 5 5"/><path d="M12 3v12"/></svg>',
     flow: S + '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+    star: S + '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3L7 14.2 2 9.3l6.9-1z"/></svg>',
     shield: S + '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/></svg>'
   };
 
@@ -74,6 +75,14 @@
     return CASES.flatMap(c => c.docs.map(d => ({ ...d, caseId: c.id, client: c.client, num: c.num })));
   }
   const caseById = id => CASES.find(c => c.id === id);
+  const RECENTS = [];
+  const touchRecent = id => { const i = RECENTS.indexOf(id); if (i > -1) RECENTS.splice(i, 1); RECENTS.unshift(id); if (RECENTS.length > 5) RECENTS.pop(); };
+
+  function lastActivity(c) {
+    const dates = [...c.notes.map(n => n.date), ...c.docs.map(d => d.date), ...(c.emails || []).map(e => e.date)];
+    return dates.sort().pop() || c.opened;
+  }
+  const daysSince = iso => Math.round((new Date(TODAY) - new Date(iso)) / 86400000);
 
   function relatedContacts(c) {
     const out = [];
@@ -350,6 +359,18 @@
               </div>`).join("")}
             </div>
           </div>
+          ${(() => {
+            const stale = CASES.filter(c => c.stage !== "Settled" && daysSince(lastActivity(c)) > 21);
+            return stale.length ? `<div class="card">
+            <div class="card-head"><h2>Needs Attention</h2></div>
+            <div class="check-list">
+              ${stale.map(c => `<div class="check-item" style="cursor:pointer" onclick="location.hash='#/case/${c.id}'">
+                <div><div class="check-label">${esc(c.client)}</div><div class="td-sub">${esc(c.type)} · ${esc(c.paralegal)}</div></div>
+                <span class="check-due soon">${daysSince(lastActivity(c))} days quiet</span>
+              </div>`).join("")}
+            </div>
+          </div>` : "";
+          })()}
           <div class="card">
             <div class="card-head"><h2>Statute Watch</h2></div>
             <div class="check-list">
@@ -413,7 +434,8 @@
   let caseFilter = "All";
 
   function viewCases() {
-    const rows = CASES.filter(c => caseFilter === "All" || c.stage === caseFilter);
+    const rows = CASES.filter(c => caseFilter === "All" || c.stage === caseFilter)
+      .slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     return `
       <div class="page-head">
         <div class="page-title"><h1>Cases</h1><p>${CASES.length} files, synced with the firm's Google Drive folder system.</p></div>
@@ -424,18 +446,24 @@
       </div>
       <div class="card table-wrap">
         <table>
-          <thead><tr><th>Client</th><th>Case</th><th>Stage</th><th>Insurer</th><th>Paralegal</th><th>Est. Value</th><th>Opened</th><th>Documents</th></tr></thead>
+          <thead><tr><th style="width:40px"></th><th>Client</th><th>Case</th><th>Stage</th><th>Insurer</th><th>Paralegal</th><th>Est. Value</th><th>Last Activity</th><th>Documents</th></tr></thead>
           <tbody>
-            ${rows.map(c => `<tr onclick="location.hash='#/case/${c.id}'">
+            ${rows.map(c => {
+              const la = lastActivity(c);
+              const ds = daysSince(la);
+              const stale = c.stage !== "Settled" && ds > 21;
+              return `<tr onclick="location.hash='#/case/${c.id}'">
+              <td><button class="mini-btn pin-btn ${c.pinned ? "pinned" : ""}" data-pin="${c.id}" title="${c.pinned ? "Unpin" : "Pin to top"}">${I.star}</button></td>
               <td><div class="td-main">${esc(c.client)}</div><div class="td-sub">${esc(c.phone)}</div></td>
               <td><div>${esc(c.type)}</div><div class="td-sub">${c.num}</div></td>
               <td><span class="stage-pill ${stageClass(c.stage)}">${c.stage}</span></td>
               <td>${esc(c.insurer)}</td>
               <td>${esc(c.paralegal)}</td>
               <td class="money">${money(c.estValue)}</td>
-              <td>${fmtDate(c.opened)}</td>
+              <td><span style="${stale ? "color:var(--red);font-weight:600" : ""}">${ds === 0 ? "Today" : ds === 1 ? "Yesterday" : ds + " days ago"}</span>${stale ? '<div class="td-sub" style="color:var(--red)">Needs attention</div>' : ""}</td>
               <td>${c.docs.some(d => d.isNew) ? `<span class="doc-badge">${c.docs.filter(d => d.isNew).length} new</span>` : `<span class="td-sub">${c.docs.length} files</span>`}</td>
-            </tr>`).join("")}
+            </tr>`;
+            }).join("")}
           </tbody>
         </table>
       </div>`;
@@ -485,7 +513,9 @@
   function viewCase(id, tab) {
     const c = caseById(id);
     if (!c) return `<div class="empty-state">Case not found.</div>`;
+    touchRecent(id);
     tab = tab || "overview";
+    const specials = c.medicals.reduce((s, m) => s + m.billed, 0);
     const newCount = c.docs.filter(d => d.isNew).length;
     const tabs = [
       ["overview", "Overview"],
@@ -507,10 +537,12 @@
             <h1>${esc(c.client)}</h1>
             <div class="case-title-meta">
               <span class="stage-pill ${stageClass(c.stage)}">${c.stage}</span>
-              <span class="case-num">${esc(c.type)} · ${c.num} · ${esc(c.attorney)}</span>
+              <span class="case-num">${esc(c.type)} · ${c.num} · ${esc(c.attorney)}${specials ? ` · <strong>${money(specials)}</strong> in specials` : ""}</span>
             </div>
           </div>
           <div class="case-actions">
+            <a class="icon-btn" href="tel:${esc(c.phone.replace(/[^0-9]/g, ""))}" title="Call ${esc(c.client.split(" ")[0])} at ${esc(c.phone)}">${S}<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.5 2.8.7a2 2 0 0 1 1.7 2z"/></svg></a>
+            <button class="icon-btn" onclick="location.hash='#/case/${c.id}/emails'" title="Text ${esc(c.client.split(" ")[0])}">${I.chat}</button>
             <button class="btn btn-ghost" onclick="openPortal('${c.id}')">Client View</button>
             <button class="btn btn-ghost" onclick="genDoc('${c.id}')">Generate Document</button>
             <button class="btn btn-primary" onclick="addNote('${c.id}')">Log Activity</button>
@@ -1251,6 +1283,35 @@
 
   let calMonth = 7; // August 2026
 
+  const KIND_COLOR = { Deadline: "red", Deposition: "purple", Mediation: "purple", Call: "blue", Consult: "green", Meeting: "blue", Internal: "gray", Exam: "amber" };
+
+  /* hand-set events + every open checklist due date (skipping days a case already has a hand-set event) */
+  function getAllEvents() {
+    const autoEvents = CASES.flatMap(c => c.checklist
+      .filter(k => !k.done && k.due && !EVENTS.some(e => e.caseId === c.id && e.date === k.due))
+      .map(k => ({ date: k.due, time: "All day", title: `${c.client.split(" ").slice(-1)[0]}: ${k.label}`, kind: "Deadline", caseId: c.id })));
+    return [...EVENTS, ...autoEvents];
+  }
+
+  window.openDay = function (iso) {
+    const evts = getAllEvents().filter(e => e.date === iso)
+      .sort((a, b) => (a.time === "All day" ? "0" : a.time).localeCompare(b.time === "All day" ? "0" : b.time));
+    const dayName = new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    openModal(`
+      <div class="form-head"><h2>${dayName}</h2><button class="icon-btn" data-close>${I.x}</button></div>
+      <div class="check-list" style="max-height:52vh;overflow-y:auto">
+        ${evts.map(e => {
+          const c = e.caseId ? caseById(e.caseId) : null;
+          return `<div class="check-item ${c ? "" : "no-click"}" ${c ? `onclick="location.hash='#/case/${c.id}'"` : ""} style="${c ? "cursor:pointer" : "cursor:default"}">
+            <span class="day-kind evt-${KIND_COLOR[e.kind] || "gray"}">${e.kind}</span>
+            <div style="min-width:0"><div class="check-label">${esc(e.title)}</div>${c ? `<div class="td-sub">${esc(c.client)} · ${esc(c.type)}</div>` : ""}</div>
+            <span class="check-due">${esc(e.time)}</span>
+          </div>`;
+        }).join("") || `<div class="empty-state">Nothing scheduled. Rare, enjoy it.</div>`}
+      </div>
+      <div class="form-foot"><button class="btn btn-ghost" data-close>Close</button><button class="btn btn-primary" onclick="addEvent('${iso}')">Add Event This Day</button></div>`);
+  };
+
   function viewCalendar() {
     const year = 2026;
     const monthName = new Date(year, calMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -1260,12 +1321,7 @@
     for (let i = 0; i < first; i++) cells.push(null);
     for (let d = 1; d <= daysIn; d++) cells.push(d);
     while (cells.length % 7) cells.push(null);
-    const kindColor = { Deadline: "red", Deposition: "purple", Mediation: "purple", Call: "blue", Consult: "green", Meeting: "blue", Internal: "gray", Exam: "amber" };
-    /* checklist due dates surface automatically; skip days where the case already has a hand-set event */
-    const autoEvents = CASES.flatMap(c => c.checklist
-      .filter(k => !k.done && k.due && !EVENTS.some(e => e.caseId === c.id && e.date === k.due))
-      .map(k => ({ date: k.due, time: "All day", title: `${c.client.split(" ").slice(-1)[0]}: ${k.label}`, kind: "Deadline", caseId: c.id })));
-    const allEvents = [...EVENTS, ...autoEvents];
+    const allEvents = getAllEvents();
 
     return `
       <div class="page-head">
@@ -1286,19 +1342,21 @@
             if (!d) return `<div class="cal-cell cal-empty"></div>`;
             const iso = `${year}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
             const evts = allEvents.filter(e => e.date === iso);
-            return `<div class="cal-cell ${iso === TODAY ? "cal-today" : ""}">
+            const shown = evts.slice(0, 2);
+            return `<div class="cal-cell cal-live ${iso === TODAY ? "cal-today" : ""}" onclick="openDay('${iso}')" title="Open ${iso}">
               <span class="cal-day">${d}</span>
-              ${evts.map(e => `<div class="cal-evt evt-${kindColor[e.kind] || "gray"}" ${e.caseId ? `onclick="location.hash='#/case/${e.caseId}'"` : ""} title="${esc(e.title)}">${esc(e.title)}</div>`).join("")}
+              ${shown.map(e => `<div class="cal-evt evt-${KIND_COLOR[e.kind] || "gray"}" title="${esc(e.title)}">${esc(e.title)}</div>`).join("")}
+              ${evts.length > 2 ? `<div class="cal-more">+${evts.length - 2} more</div>` : ""}
             </div>`;
           }).join("")}
         </div>
       </div>`;
   }
 
-  window.addEvent = function () {
+  window.addEvent = function (prefillDate) {
     formModal("New Event", [
       { id: "title", label: "Title", ph: "Deposition, call, mediation" },
-      { id: "date", label: "Date (YYYY-MM-DD)", ph: "2026-08-20" },
+      { id: "date", label: "Date (YYYY-MM-DD)", ph: "2026-08-20", value: typeof prefillDate === "string" ? prefillDate : "" },
       { id: "time", label: "Time", ph: "10:00 AM or All day", value: "All day" },
       { id: "kind", label: "Type", type: "select", options: ["Call", "Meeting", "Deadline", "Deposition", "Mediation", "Consult", "Internal", "Exam"], value: "Meeting" },
       { id: "client", label: "Case", type: "select", options: ["None", ...CASES.map(x => x.client)], value: "None", wide: true }
@@ -1741,6 +1799,15 @@
     const results = $("#searchResults");
     $("#searchIcon").innerHTML = I.search;
 
+    input.addEventListener("focus", () => {
+      if (input.value.trim().length >= 2 || !RECENTS.length) return;
+      results.innerHTML = `<div class="sr-group">Recent</div>` + RECENTS.map(id => {
+        const c = caseById(id);
+        return c ? `<div class="sr-item" data-go="#/case/${c.id}">${I.briefcase}<div><div class="sr-title">${esc(c.client)}</div><div class="sr-sub">${esc(c.type)} · ${esc(c.stage)}</div></div></div>` : "";
+      }).join("");
+      results.classList.add("open");
+    });
+
     input.addEventListener("input", () => {
       const q = input.value.trim().toLowerCase();
       if (q.length < 2) { results.classList.remove("open"); return; }
@@ -1837,6 +1904,13 @@
     document.querySelectorAll(".chip[data-person]").forEach(ch => {
       ch.addEventListener("click", () => { taskPerson = ch.dataset.person; refresh(); });
     });
+    document.querySelectorAll("[data-pin]").forEach(b => b.addEventListener("click", e => {
+      e.stopPropagation();
+      const c = caseById(b.dataset.pin);
+      c.pinned = !c.pinned;
+      refresh();
+      toast(c.pinned ? c.client + " pinned to the top" : c.client + " unpinned");
+    }));
     document.querySelectorAll(".tab[data-tab]").forEach(t => {
       t.addEventListener("click", () => {
         activeFolder = null;
