@@ -202,10 +202,24 @@ lien negotiation history, referral fee tracking, document versioning.
   already focuses search.
 - All verified by scripted browser checks; zero console errors.
 
+### Iteration 11 (2026-08-07) - backlog zeroed + polish sweep
+- Portal Messages card mirrors the case's real text thread (client perspective).
+- Notes: hover edit/delete with undo on every note.
+- New Lead button on Leads (name, matter, source, summary; auto-scored).
+- Polish sweep: word-break/ellipsis guards on file names, subjects, search
+  results, viewer meta; text-wrap pretty on prose; toast max width; smaller
+  FAB on phones; week view scrolls horizontally on narrow screens; bar chart
+  columns compact on phones; drive-notes hidden in card heads under 560;
+  neg rows and cal nav wrap cleanly; icon buttons stay compact in case actions.
+- Verified on mobile 375: settlements, reports, doc viewer (paper stacks over
+  AI rail, icon-only buttons), leads. Zero console errors.
+- FEATURE BACKLOG IS EMPTY. Remaining work is production-only (real Drive,
+  Outlook, Twilio, QuickBooks, e-sign, auth) or new requests from Peyton/Chris.
+
 ## Next candidates
-1. Portal: messages thread synced with Comms texts.
-2. Editable notes (edit/delete existing notes).
-3. New Lead button + lead detail view.
+1. Idle-state review: click through every view hunting visual defects.
+2. Seed-data richness: more docs/emails on the lighter cases.
+3. Respond to any Notes from Peyton.
 
 ## Known rough edges
 - Settlements "next step" column pulls the first open checklist item (fine, but

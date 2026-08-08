@@ -252,6 +252,13 @@
                 </div>`;
               }).join("")}
             </div>
+            ${c.texts && c.texts.length ? `<div class="portal-card" style="background:#fff">
+              <div class="portal-card-label">Messages</div>
+              <div class="portal-msgs">
+                ${c.texts.slice(-3).map(t => `<div class="pmsg ${t.from === "client" ? "pmsg-me" : ""}">${esc(t.text)}</div>`).join("")}
+              </div>
+              <div class="portal-card-sub" style="margin-top:8px">Same thread your legal team sees. Reply anytime.</div>
+            </div>` : ""}
             ${nextEvt ? `<div class="portal-card">
               <div class="portal-card-label">Coming up</div>
               <div class="portal-card-main">${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(nextEvt.title.split(": ")[1] || nextEvt.title))}</div>
@@ -893,8 +900,13 @@
     if (tab === "notes") {
       return `<div class="card">
         <div class="card-head"><h2>Notes</h2><button class="btn btn-ghost btn-sm" onclick="addNote('${c.id}')">Add Note</button></div>
-        ${c.notes.map(n => `<div class="note">
-          <div class="note-head"><span class="note-by">${esc(n.by)}</span><span>${fmtDate(n.date)}</span></div>
+        ${c.notes.map((n, ni) => `<div class="note note-row">
+          <div class="note-head"><span class="note-by">${esc(n.by)}</span><span>${fmtDate(n.date)}</span>
+            <div class="row-actions" style="margin-left:auto">
+              <button class="mini-btn" onclick="editNote('${c.id}',${ni})" title="Edit">${I.edit}</button>
+              <button class="mini-btn danger" onclick="deleteNote('${c.id}',${ni})" title="Delete">${I.trash}</button>
+            </div>
+          </div>
           <div class="note-text">${esc(n.text)}</div>
         </div>`).join("") || `<div class="empty-state">No notes yet.</div>`}
       </div>`;
@@ -1002,6 +1014,20 @@
       refresh();
       toast("Sent through Outlook and logged to the file");
     });
+  };
+
+  window.editNote = function (id, ni) {
+    const c = caseById(id);
+    const n = c.notes[ni];
+    formModal("Edit Note", [{ id: "text", label: "Note", type: "textarea", value: n.text, wide: true }],
+      v => { n.text = v.text.trim() || n.text; refresh(); toast("Note updated"); });
+  };
+
+  window.deleteNote = function (id, ni) {
+    const c = caseById(id);
+    const removed = c.notes.splice(ni, 1)[0];
+    refresh();
+    toast("Note deleted", { undo: () => { c.notes.splice(ni, 0, removed); refresh(); } });
   };
 
   window.editFacts = function (id) {
@@ -1239,6 +1265,7 @@
     return `
       <div class="page-head">
         <div class="page-title"><h1>Leads</h1><p>Intake pipeline. Website chat leads arrive scored and summarized. Drag a card to move it.</p></div>
+        <button class="btn btn-primary" onclick="newLead()">New Lead</button>
       </div>
       <div class="lead-board">
         ${cols.map(col => {
@@ -1261,6 +1288,22 @@
         }).join("")}
       </div>`;
   }
+
+  window.newLead = function () {
+    formModal("New Lead", [
+      { id: "name", label: "Name", ph: "First Last" },
+      { id: "matter", label: "Matter", type: "select", options: ["Car Accident", "Truck Accident", "Motorcycle Accident", "Workers Comp", "Slip and Fall", "Dog Bite", "Premises Liability", "Other Injury"], value: "Car Accident" },
+      { id: "source", label: "Source", type: "select", options: ["Phone call", "Website chat", "Referral", "Google Ads", "Walk-in"], value: "Phone call" },
+      { id: "summary", label: "What happened", type: "textarea", value: "", wide: true }
+    ], v => {
+      if (!v.name.trim()) return;
+      const score = 55 + (v.summary.length % 40);
+      LEADS.unshift({ id: "l" + Date.now().toString(36), name: v.name.trim(), matter: v.matter, source: v.source, score, status: "New", received: TODAY + " just now", summary: v.summary.trim() || "Intake notes to follow." });
+      logActivity(`New lead logged: ${v.name.trim()}, ${v.matter.toLowerCase()}, scored ${score}`);
+      refresh();
+      toast(`${v.name.trim()} added and scored ${score}`);
+    }, "Add Lead");
+  };
 
   function bindLeads() {
     let dragged = null;
@@ -1465,10 +1508,10 @@
         <button class="chip ${calCourt ? "active" : ""}" data-calcourt="1">Court dates only</button>
       </div>
       <div class="card cal-card">
-        <div class="cal-grid cal-head-row">
+        <div class="cal-grid cal-head-row ${calMode === "week" ? "cal-grid-week-head" : ""}">
           ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<div class="cal-dow">${d}</div>`).join("")}
         </div>
-        <div class="cal-grid">${gridBody}</div>
+        <div class="cal-grid ${calMode === "week" ? "cal-grid-week" : ""}">${gridBody}</div>
       </div>`;
   }
 

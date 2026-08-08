@@ -1149,6 +1149,30 @@ tbody tr:last-child td { border-bottom: none; }
 .portal-card-main { font-size: 13.5px; font-weight: 600; margin-top: 3px; }
 .portal-card-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
+.portal-msgs { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pmsg {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  border-bottom-left-radius: 4px;
+  padding: 8px 11px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  max-width: 88%;
+}
+.pmsg-me {
+  align-self: flex-end;
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  border-radius: 12px;
+  border-bottom-right-radius: 4px;
+}
+
+.note-row .row-actions { opacity: 0; }
+.note-row:hover .row-actions { opacity: 1; }
+
 .portal-actions { display: flex; gap: 10px; margin-top: 14px; }
 .portal-actions .btn { flex: 1; justify-content: center; }
 
@@ -1451,6 +1475,22 @@ tbody tr:last-child td { border-bottom: none; }
   .card { box-shadow: none; break-inside: avoid; margin-bottom: 14px; }
 }
 
+/* ---------- Polish sweep: overflow and wrapping guards ---------- */
+
+.page-title p, .feed-ai, .lead-summary, .note-text, .email-body, .facts { text-wrap: pretty; }
+.file-name, .feed-title, .email-subject, .check-label, .lead-summary, .note-text, .email-body { overflow-wrap: break-word; word-break: break-word; min-width: 0; }
+.feed-body { min-width: 0; flex: 1; }
+.sr-item > div { min-width: 0; }
+.sr-title, .sr-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60vw; }
+.viewer-title { min-width: 0; overflow: hidden; }
+.toast-inner { max-width: min(92vw, 520px); }
+.kv-value { overflow-wrap: break-word; }
+.td-sub { overflow-wrap: break-word; }
+.cal-card { overflow-x: auto; }
+.cal-grid-week { min-width: 700px; }
+.cal-head-row.cal-grid-week-head { min-width: 700px; }
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1180px) {
@@ -1544,4 +1584,20 @@ tbody tr:last-child td { border-bottom: none; }
   .setting-selects label { min-width: 100%; }
   .custom-add { flex-wrap: wrap; }
   .custom-add input { min-width: 100%; }
+  .case-actions .icon-btn { flex: 0 0 auto; }
+  #aiFab { width: 36px; height: 36px; font-size: 12px; border-radius: 10px; bottom: 12px; }
+  .card-head .drive-note { display: none; }
+  .bar-row { grid-template-columns: 96px 1fr 70px; gap: 8px; }
+  .bar-label, .bar-value { font-size: 11.5px; }
+  .cal-week-cell { height: 220px; }
+  .cal-nav { flex-wrap: wrap; }
+  .cal-nav .btn { flex: 1; justify-content: center; }
+  .bulk-bar { flex-wrap: wrap; }
+  .integrations { gap: 8px; }
+  .integration { flex: 1 1 100%; }
+  .tabs { scrollbar-width: none; }
+  .lead-foot { flex-wrap: wrap; gap: 4px; }
+  .neg-item { flex-wrap: wrap; }
+  .neg-date { margin-left: 0; width: 100%; }
+  .neg-amount { text-align: left; min-width: 0; }
 }
