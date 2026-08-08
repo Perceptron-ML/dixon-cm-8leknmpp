@@ -2150,7 +2150,9 @@
   /* ---------- router ---------- */
 
   /* route() = real navigation: animate in, scroll to top, close modals.
-     refresh() = in-place update after a state change: no animation, keep scroll. */
+     refresh() = in-place update after a state change: no animation, keep scroll.
+     Case tab clicks swap only the tab body (suppressRoute skips the hashchange render). */
+  let suppressRoute = false;
   function route() { render(true); }
   function refresh() { render(false); }
 
@@ -2181,7 +2183,7 @@
   }
   window.route = route;
 
-  function bindView(parts) {
+  function bindView(parts, contentOnly) {
     document.querySelectorAll(".chip[data-stage]").forEach(ch => {
       ch.addEventListener("click", () => { caseFilter = ch.dataset.stage; refresh(); });
     });
@@ -2209,10 +2211,17 @@
       refresh();
       toast(c.pinned ? c.client + " pinned to the top" : c.client + " unpinned");
     }));
-    document.querySelectorAll(".tab[data-tab]").forEach(t => {
+    if (!contentOnly) document.querySelectorAll(".tab[data-tab]").forEach(t => {
       t.addEventListener("click", () => {
         activeFolder = null;
+        const c = caseById(t.dataset.case);
+        const body = document.querySelector(".tab-body");
+        if (!c || !body) { location.hash = `#/case/${t.dataset.case}/${t.dataset.tab}`; return; }
+        suppressRoute = true;
         location.hash = `#/case/${t.dataset.case}/${t.dataset.tab}`;
+        document.querySelectorAll(".tab[data-tab]").forEach(x => x.classList.toggle("active", x === t));
+        body.innerHTML = `<div class="tabfade">${caseTab(c, t.dataset.tab)}</div>`;
+        bindView(["case", t.dataset.case, t.dataset.tab], true);
       });
     });
     document.querySelectorAll(".folder[data-folder]").forEach(f => {
@@ -2255,7 +2264,7 @@
         toast("Done: " + item.label, { undo: () => { item.done = false; refresh(); } });
       });
     });
-    document.querySelectorAll(".path-step[data-move]").forEach(p => {
+    if (!contentOnly) document.querySelectorAll(".path-step[data-move]").forEach(p => {
       if (!p.dataset.move) return;
       p.classList.add("advance");
       p.addEventListener("click", () => {
@@ -2483,6 +2492,9 @@
   });
   bindBell();
   bindSearch();
-  window.addEventListener("hashchange", route);
+  window.addEventListener("hashchange", () => {
+    if (suppressRoute) { suppressRoute = false; return; }
+    route();
+  });
   route();
 })();

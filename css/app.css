@@ -716,6 +716,7 @@ tbody tr:last-child td { border-bottom: none; }
 /* ---------- View transition ---------- */
 
 .view-enter { animation: viewIn 0.24s ease both; }
+.tabfade { animation: viewIn 0.16s ease both; }
 @keyframes viewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Pipeline scroll hint ---------- */
