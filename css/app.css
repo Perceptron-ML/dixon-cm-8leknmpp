@@ -178,6 +178,25 @@ button { font-family: var(--font-body); cursor: pointer; }
 
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  background: var(--bg);
+}
+.vt-seg {
+  border: none;
+  background: none;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.vt-seg.active { background: var(--ink); color: #fff; }
+
 .icon-btn {
   width: 36px; height: 36px;
   border: 1px solid var(--line);
@@ -827,7 +846,7 @@ tbody tr:last-child td { border-bottom: none; }
 .cal-month { font-family: var(--font-head); font-size: 17px; min-width: 150px; text-align: center; }
 
 .cal-card { overflow: hidden; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-head-row { border-bottom: 1px solid var(--line); }
 .cal-dow { padding: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: center; }
 
@@ -1534,7 +1553,8 @@ tbody tr:last-child td { border-bottom: none; }
   #aiPanel { max-width: calc(100vw - 84px); }
 
   .topbar { padding: 10px 12px; gap: 8px; }
-  #newCaseBtn span, #newCaseBtn { font-size: 12.5px; padding: 8px 10px; }
+  #newCaseBtn { display: none; }
+  .vt-seg { padding: 6px 10px; font-size: 12px; }
   .content { padding: 16px 12px 120px; }
 
   .page-head { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px; }
@@ -1568,6 +1588,16 @@ tbody tr:last-child td { border-bottom: none; }
   .table-foot { flex-wrap: wrap; gap: 8px 18px; padding: 11px 14px; }
 
   .cal-cell { height: 56px; padding: 4px 5px; }
+  .cal-more { display: none; }
+  .cal-dow { padding: 8px 2px; font-size: 10px; letter-spacing: 0.02em; }
+  .cal-nav { gap: 8px; }
+  .cal-nav .btn { flex: 1 1 100%; }
+  .cal-month { flex: 1; white-space: nowrap; font-size: 14.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+  .cal-grid-week { display: block; min-width: 0; }
+  .cal-grid-week .cal-cell { height: auto; min-height: 52px; border-right: none; padding: 8px 12px; }
+  .cal-grid-week .cal-evt { font-size: 11.5px; height: auto; padding: 4px 9px; border-radius: 6px; border-left-width: 3px; border-left-style: solid; }
+  .cal-head-row.cal-grid-week-head { display: none; }
   .cal-evt { font-size: 0; padding: 0; height: 6px; border-radius: 3px; border-left: none; margin-top: 4px; }
   .cal-month { min-width: 0; font-size: 15px; }
 
@@ -1593,7 +1623,7 @@ tbody tr:last-child td { border-bottom: none; }
   .bar-label, .bar-value { font-size: 11.5px; }
   .cal-week-cell { height: 220px; }
   .cal-nav { flex-wrap: wrap; }
-  .cal-nav .btn { flex: 1; justify-content: center; }
+  .cal-nav .btn { flex: 1 1 100%; justify-content: center; }
   .bulk-bar { flex-wrap: wrap; }
   .integrations { gap: 8px; }
   .integration { flex: 1 1 100%; }

@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Dixon Case Manager</title>
-<link rel="icon" href="assets/logo.png">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
 <link href="https://api.fontshare.com/v2/css?f[]=sentient@400,500,700&f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=16">
+<link rel="stylesheet" href="css/app.css?v=17">
 </head>
 <body>
 <div id="app">
@@ -36,6 +37,10 @@
         <div class="search-results" id="searchResults"></div>
       </div>
       <div class="topbar-right">
+        <div class="view-toggle" id="viewToggle" title="Preview what the client sees">
+          <button class="vt-seg active" data-vt="staff">Staff</button>
+          <button class="vt-seg" data-vt="client">Client</button>
+        </div>
         <button class="icon-btn" id="notifBtn" title="Notifications"></button>
         <button class="btn btn-primary" id="newCaseBtn">New Case</button>
       </div>
@@ -45,8 +50,8 @@
 </div>
 <div id="modal"></div>
 <div id="toast"></div>
-<script src="js/data.js?v=16"></script>
-<script src="js/enrich.js?v=16"></script>
-<script src="js/app.js?v=16"></script>
+<script src="js/data.js?v=17"></script>
+<script src="js/enrich.js?v=17"></script>
+<script src="js/app.js?v=17"></script>
 </body>
 </html>

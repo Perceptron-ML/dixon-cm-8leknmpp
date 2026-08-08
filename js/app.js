@@ -128,7 +128,10 @@
     $("#overlay").addEventListener("mousedown", e => { if (e.target.id === "overlay") closeModal(); });
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModal));
   }
-  function closeModal() { $("#modal").innerHTML = ""; }
+  function closeModal() {
+    $("#modal").innerHTML = "";
+    document.querySelectorAll(".vt-seg").forEach(s => s.classList.toggle("active", s.dataset.vt === "staff"));
+  }
 
   /* generic small form modal: fields = [{id,label,value,type,options,ph,wide}] */
   function formModal(title, fields, onSave, saveLabel) {
@@ -1470,10 +1473,12 @@
 
     let title, gridBody;
     if (calMode === "week") {
-      title = `${fmtDate(weekStart)} to ${fmtDate(plusDays(weekStart, 6))}`;
+      const short = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      title = `${short(weekStart)} to ${short(plusDays(weekStart, 6))}`;
       gridBody = Array.from({ length: 7 }, (_, i) => {
         const iso = plusDays(weekStart, i);
-        return cellHTML(iso, +iso.slice(8), 0);
+        const wd = new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+        return cellHTML(iso, `${wd} ${+iso.slice(8)}`, 0);
       }).join("");
     } else {
       title = new Date(year, calMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -2325,6 +2330,16 @@
     panel.querySelectorAll(".ai-chip").forEach(ch => ch.addEventListener("click", () => submit(ch.textContent)));
   }
   initBuildConsole();
+
+  document.querySelectorAll(".vt-seg").forEach(seg => seg.addEventListener("click", () => {
+    if (seg.dataset.vt === "client") {
+      const m = (location.hash || "").match(/#\/case\/(c[a-z0-9]+)/);
+      document.querySelectorAll(".vt-seg").forEach(s => s.classList.toggle("active", s === seg));
+      window.openPortal(m && caseById(m[1]) ? m[1] : "c1");
+    } else {
+      closeModal();
+    }
+  }));
 
   $("#newCaseBtn").addEventListener("click", () => window.newCase());
   let kbIdx = -1;
