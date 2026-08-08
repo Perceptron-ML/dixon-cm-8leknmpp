@@ -105,23 +105,32 @@ button { font-family: var(--font-body); cursor: pointer; }
 
 .sidebar-foot { padding: 14px; border-top: 1px solid var(--ink-3); display: flex; flex-direction: column; gap: 12px; }
 
-.portal-pill {
+.side-toggle {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   width: 100%;
   border: 1px solid var(--ink-3);
   border-radius: 999px;
   background: var(--ink-2);
-  color: #C4CAD0;
-  padding: 8px 12px;
+  padding: 3px;
+}
+.side-toggle .vt-seg {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  border-radius: 999px;
+  padding: 7px 8px;
   font-size: 12px;
   font-weight: 600;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  color: #C4CAD0;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.portal-pill:hover { border-color: var(--orange); color: #fff; }
-.pp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(30, 142, 90, 0.25); flex-shrink: 0; }
+.side-toggle .vt-seg svg { width: 13px; height: 13px; flex-shrink: 0; }
+.side-toggle .vt-seg:hover { color: #fff; }
+.side-toggle .vt-seg.active { background: var(--orange); color: #fff; }
 
 /* ---------- Full-page client portal ---------- */
 
@@ -184,8 +193,9 @@ body.cv-open #aiFab, body.cv-open #aiPanel { display: none; }
 }
 
 @media (max-width: 1024px) {
-  .pp-label { display: none; }
-  .portal-pill { padding: 10px; }
+  .side-toggle { flex-direction: column; border-radius: 14px; gap: 2px; }
+  .side-toggle .vt-label { display: none; }
+  .side-toggle .vt-seg { padding: 9px 6px; }
 }
 
 .user-chip { display: flex; align-items: center; gap: 10px; }

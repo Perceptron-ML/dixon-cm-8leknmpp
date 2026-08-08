@@ -245,3 +245,8 @@ lien negotiation history, referral fee tracking, document versioning.
 - Real Dixon favicon from dixoninjuryfirm.com CDN.
 - Verified: enter/exit, picker switch, client message round-trip to staff
   Comms, mobile + desktop layouts, zero console errors.
+
+### Iteration 13 (2026-08-07)
+- Removed the redundant topbar Staff/Client segment; the switch now lives as a
+  Staff/Client toggle in the sidebar footer (icons + labels, stacks to icon-only
+  when the sidebar collapses). Verified enter/exit sync at 1400px, 1024px, 375px.

@@ -2456,10 +2456,6 @@
       window.exitClientView();
     }
   }));
-  $("#portalPill").addEventListener("click", () => {
-    const m = (location.hash || "").match(/#\/case\/(c[a-z0-9]+)/);
-    window.enterClientView(m && caseById(m[1]) ? m[1] : clientCase);
-  });
 
   $("#newCaseBtn").addEventListener("click", () => window.newCase());
   let kbIdx = -1;

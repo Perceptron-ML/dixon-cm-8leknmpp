@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/favicon.png">
 <link href="https://api.fontshare.com/v2/css?f[]=sentient@400,500,700&f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=18">
+<link rel="stylesheet" href="css/app.css?v=19">
 </head>
 <body>
 <div id="app">
@@ -20,9 +20,16 @@
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="sidebar-foot">
-      <button class="portal-pill" id="portalPill" title="Preview the client portal">
-        <span class="pp-dot"></span><span class="pp-label">Client portal preview</span>
-      </button>
+      <div class="side-toggle" id="sideToggle" title="Switch between the staff app and the client portal">
+        <button class="vt-seg active" data-vt="staff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span class="vt-label">Staff</span>
+        </button>
+        <button class="vt-seg" data-vt="client">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="vt-label">Client</span>
+        </button>
+      </div>
       <div class="user-chip">
         <div class="avatar">CD</div>
         <div>
@@ -40,10 +47,6 @@
         <div class="search-results" id="searchResults"></div>
       </div>
       <div class="topbar-right">
-        <div class="view-toggle" id="viewToggle" title="Preview what the client sees">
-          <button class="vt-seg active" data-vt="staff">Staff</button>
-          <button class="vt-seg" data-vt="client">Client</button>
-        </div>
         <button class="icon-btn" id="notifBtn" title="Notifications"></button>
         <button class="btn btn-primary" id="newCaseBtn">New Case</button>
       </div>
@@ -53,8 +56,8 @@
 </div>
 <div id="modal"></div>
 <div id="toast"></div>
-<script src="js/data.js?v=18"></script>
-<script src="js/enrich.js?v=18"></script>
-<script src="js/app.js?v=18"></script>
+<script src="js/data.js?v=19"></script>
+<script src="js/enrich.js?v=19"></script>
+<script src="js/app.js?v=19"></script>
 </body>
 </html>
