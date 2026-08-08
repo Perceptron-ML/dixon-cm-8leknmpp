@@ -154,7 +154,13 @@
       onSave(vals);
     });
   }
-  document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModal(); $("#searchResults") && $("#searchResults").classList.remove("open"); } });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      if (document.body.classList.contains("cv-open")) { window.exitClientView(); return; }
+      closeModal();
+      $("#searchResults") && $("#searchResults").classList.remove("open");
+    }
+  });
 
   /* ---------- document viewer (the Drive overlay) ---------- */
 
@@ -281,6 +287,117 @@
       </div>`, true);
   };
   window.toastPortal = msg => toast(msg);
+
+  /* ---------- full-page client portal (the mock client dashboard) ---------- */
+
+  let clientCase = "c1";
+
+  window.enterClientView = function (id) {
+    if (id && caseById(id)) clientCase = id;
+    const c = caseById(clientCase);
+    closeModal();
+    let cv = $("#clientView");
+    if (!cv) { cv = document.createElement("div"); cv.id = "clientView"; document.body.appendChild(cv); }
+    const stageIdx = STAGES.indexOf(c.stage);
+    const first = c.client.split(" ")[0];
+    const nextEvt = EVENTS.find(e => e.caseId === c.id && e.date >= TODAY);
+    const signedDocs = c.docs.filter(d => d.folder === "01 Intake & Retainer" || d.sig).slice(0, 3);
+    cv.innerHTML = `
+      <div class="cv-head">
+        <div class="cv-head-inner">
+          <img src="assets/logo.png" alt="The Dixon Injury Firm">
+          <span class="cv-badge">Client Portal</span>
+          <div class="cv-head-right">
+            <select id="cvPicker" title="Preview as a different client">
+              ${CASES.filter(x => x.stage !== "Settled").map(x => `<option value="${x.id}" ${x.id === c.id ? "selected" : ""}>${esc(x.client)}</option>`).join("")}
+            </select>
+            <button class="btn btn-primary btn-sm" id="cvExit">Exit preview</button>
+          </div>
+        </div>
+      </div>
+      <div class="cv-main">
+        <h1 class="cv-hi">Hi ${esc(first)}</h1>
+        <p class="cv-sub">Here is exactly where your case stands, updated the moment anything happens.</p>
+        <div class="card">
+          <div class="card-head"><h2>Your Case</h2><span class="drive-note">${esc(c.type)} · started ${fmtDate(c.opened)}</span></div>
+          <div class="tracker" style="padding:18px 18px 6px">
+            ${STAGES.map((st, i) => {
+              const [title, blurb] = PORTAL_COPY[st];
+              const state = i < stageIdx ? "done" : i === stageIdx ? "now" : "todo";
+              return `<div class="tk ${state}">
+                <div class="tk-rail"><span class="tk-dot">${i < stageIdx ? I.check : ""}</span>${i < STAGES.length - 1 ? '<span class="tk-line"></span>' : ""}</div>
+                <div class="tk-body">
+                  <div class="tk-title">${title}${state === "now" ? '<span class="tk-here">You are here</span>' : ""}</div>
+                  ${state === "now" ? `<div class="tk-blurb">${blurb}</div>` : ""}
+                </div>
+              </div>`;
+            }).join("")}
+          </div>
+        </div>
+        ${(() => {
+          const clientSafe = { Call: "Phone call with your legal team", Meeting: "Meeting with your legal team", Deposition: "Your deposition (we will prepare you)", Mediation: "Mediation session", Exam: "Medical examination", Consult: "Consultation" };
+          const evt = EVENTS.filter(e => e.caseId === c.id && e.date >= TODAY && clientSafe[e.kind])[0];
+          return evt ? `<div class="card">
+          <div class="card-head"><h2>Coming Up</h2></div>
+          <div class="facts"><strong>${clientSafe[evt.kind]}</strong><br><span style="color:var(--muted)">${fmtDate(evt.date)}${evt.time !== "All day" ? " · " + esc(evt.time) : ""}</span></div>
+        </div>` : "";
+        })()}
+        <div class="card">
+          <div class="card-head"><h2>Messages</h2><span class="drive-note">Goes straight to your legal team</span></div>
+          <div class="sms-thread" id="cvThread">
+            ${(c.texts || []).map(t => `<div class="sms ${t.from === "client" ? "sms-firm" : "sms-client"}">
+              <div class="sms-bubble" ${t.from === "client" ? "" : 'style="background:#fff"'}>${esc(t.text)}</div>
+              <div class="sms-when">${t.from === "client" ? "You" : "Your legal team"} · ${esc(t.when)}</div>
+            </div>`).join("") || `<div class="empty-state">No messages yet. Say hello.</div>`}
+            <div class="sms-compose"><input type="text" placeholder="Message your legal team" id="cvInput"><button class="btn btn-primary btn-sm" id="cvSend">Send</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Your Documents</h2><button class="btn btn-ghost btn-sm" id="cvUpload">Upload</button><input type="file" id="cvUploadInput" multiple hidden></div>
+          ${signedDocs.map(d => `<div class="feed-item no-click" style="cursor:default">
+            <div class="file-icon ${d.name.endsWith(".docx") ? "docx" : ""}">${I.doc}</div>
+            <div class="feed-body"><div class="file-name">${esc(d.name)}${d.sig === "pending" ? '<span class="sig-pill">Waiting for your signature</span>' : d.sig === "signed" ? '<span class="sig-pill signed">Signed</span>' : ""}</div>
+            <div class="file-meta">${fmtDate(d.date)}</div></div>
+          </div>`).join("") || `<div class="empty-state">Nothing shared yet.</div>`}
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Your Team</h2></div>
+          <div class="facts">${esc(c.paralegal)} and Chris Dixon are on your case.<br>
+          <span style="color:var(--muted)">Call anytime: <a href="tel:13142082808" style="color:var(--orange);font-weight:600">(314) 208-2808</a></span></div>
+        </div>
+        <p class="cv-foot">The Dixon Injury Firm · St. Louis, Missouri · You are seeing a live view of your file ${c.num}</p>
+      </div>`;
+    cv.classList.add("open");
+    document.body.classList.add("cv-open");
+    document.querySelectorAll(".vt-seg").forEach(s => s.classList.toggle("active", s.dataset.vt === "client"));
+    $("#cvExit").addEventListener("click", exitClientView);
+    $("#cvPicker").addEventListener("change", e => enterClientView(e.target.value));
+    const send = () => {
+      const input = $("#cvInput");
+      const text = input.value.trim();
+      if (!text) return;
+      if (!c.texts) c.texts = [];
+      c.texts.push({ from: "client", text, when: "Just now" });
+      logActivity(`${c.client} sent a message through the portal`);
+      enterClientView(c.id);
+      toast("Sent. Your legal team was notified");
+    };
+    $("#cvSend").addEventListener("click", send);
+    $("#cvInput").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+    $("#cvUpload").addEventListener("click", () => $("#cvUploadInput").click());
+    $("#cvUploadInput").addEventListener("change", e => {
+      [...e.target.files].forEach(f => c.docs.unshift({ folder: "01 Intake & Retainer", name: f.name, date: TODAY, isNew: true, ai: `Uploaded by ${c.client} through the client portal. Filed and summarized automatically.` }));
+      if (e.target.files.length) { logActivity(`${c.client} uploaded ${e.target.files.length} document(s) through the portal`); toast("Sent to your legal team and filed"); enterClientView(c.id); }
+    });
+  };
+
+  window.exitClientView = function () {
+    const cv = $("#clientView");
+    if (cv) cv.classList.remove("open");
+    document.body.classList.remove("cv-open");
+    document.querySelectorAll(".vt-seg").forEach(s => s.classList.toggle("active", s.dataset.vt === "staff"));
+    refresh();
+  };
 
   /* ---------- shell ---------- */
 
@@ -2334,12 +2451,15 @@
   document.querySelectorAll(".vt-seg").forEach(seg => seg.addEventListener("click", () => {
     if (seg.dataset.vt === "client") {
       const m = (location.hash || "").match(/#\/case\/(c[a-z0-9]+)/);
-      document.querySelectorAll(".vt-seg").forEach(s => s.classList.toggle("active", s === seg));
-      window.openPortal(m && caseById(m[1]) ? m[1] : "c1");
+      window.enterClientView(m && caseById(m[1]) ? m[1] : clientCase);
     } else {
-      closeModal();
+      window.exitClientView();
     }
   }));
+  $("#portalPill").addEventListener("click", () => {
+    const m = (location.hash || "").match(/#\/case\/(c[a-z0-9]+)/);
+    window.enterClientView(m && caseById(m[1]) ? m[1] : clientCase);
+  });
 
   $("#newCaseBtn").addEventListener("click", () => window.newCase());
   let kbIdx = -1;

@@ -103,7 +103,90 @@ button { font-family: var(--font-body); cursor: pointer; }
 
 .nav-item.active .nav-badge { background: rgba(255, 255, 255, 0.25); }
 
-.sidebar-foot { padding: 14px; border-top: 1px solid var(--ink-3); }
+.sidebar-foot { padding: 14px; border-top: 1px solid var(--ink-3); display: flex; flex-direction: column; gap: 12px; }
+
+.portal-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--ink-3);
+  border-radius: 999px;
+  background: var(--ink-2);
+  color: #C4CAD0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.portal-pill:hover { border-color: var(--orange); color: #fff; }
+.pp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(30, 142, 90, 0.25); flex-shrink: 0; }
+
+/* ---------- Full-page client portal ---------- */
+
+#clientView {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: var(--bg);
+  overflow-y: auto;
+  display: none;
+}
+#clientView.open { display: block; animation: fadeIn 0.2s ease both; }
+body.cv-open #aiFab, body.cv-open #aiPanel { display: none; }
+
+.cv-head { background: var(--ink); position: sticky; top: 0; z-index: 5; }
+.cv-head-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cv-head-inner img { width: 150px; height: auto; }
+.cv-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--orange-bright);
+  border: 1px solid var(--ink-3);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.cv-head-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.cv-head-right select {
+  background: var(--ink-2);
+  color: #fff;
+  border: 1px solid var(--ink-3);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  outline: none;
+  max-width: 150px;
+}
+
+.cv-main { max-width: 680px; margin: 0 auto; padding: 28px 20px 48px; display: flex; flex-direction: column; gap: 16px; }
+.cv-hi { font-size: 30px; }
+.cv-sub { color: var(--muted); font-size: 14.5px; margin: -8px 0 6px; }
+.cv-foot { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 10px; }
+
+#clientView .sms-firm .sms-bubble { background: var(--orange); }
+
+@media (max-width: 560px) {
+  .cv-head-inner { padding: 12px 14px; }
+  .cv-head-inner img { width: 120px; }
+  .cv-main { padding: 20px 12px 40px; }
+  .cv-hi { font-size: 24px; }
+  .cv-head-right { margin-left: 0; width: 100%; }
+  .cv-head-right select { flex: 1; max-width: none; }
+}
+
+@media (max-width: 1024px) {
+  .pp-label { display: none; }
+  .portal-pill { padding: 10px; }
+}
 
 .user-chip { display: flex; align-items: center; gap: 10px; }
 

@@ -233,3 +233,15 @@ lien negotiation history, referral fee tracking, document versioning.
 - No em dashes in visible copy. No emoji; one inline SVG icon set.
 - Realistic St. Louis PI seed data, never lorem ipsum.
 - Never regress a working feature. Verify in browser before ending an iteration.
+
+### Iteration 12 (2026-08-07) - full-page client portal
+- Sidebar pill "Client portal preview" (green status dot) + topbar Client
+  segment now open a FULL-PAGE mock client dashboard: ink header with logo and
+  CLIENT PORTAL badge, client picker, Exit preview; greeting, stage tracker,
+  client-safe Coming Up (kind-based labels, internal task wording never leaks),
+  working Messages thread (client sends land in staff Comms + activity feed),
+  document list with signature states, upload that files to the case, team
+  card with tel: link. Esc exits. Phone-frame modal remains on case pages.
+- Real Dixon favicon from dixoninjuryfirm.com CDN.
+- Verified: enter/exit, picker switch, client message round-trip to staff
+  Comms, mobile + desktop layouts, zero console errors.
