@@ -1619,6 +1619,7 @@ tbody tr:last-child td { border-bottom: none; }
   .brand img.brand-full, .brand-sub { display: none; }
   .brand img.brand-mark { display: block; }
   .user-chip > div:last-child, .nav-item .nav-label, .nav-item .nav-badge { display: none; }
+  .user-chip { justify-content: center; gap: 0; }
   .nav-item { justify-content: center; padding: 11px; }
   .sidebar-foot { display: flex; justify-content: center; }
   .viewer-body { grid-template-columns: 1fr; }
