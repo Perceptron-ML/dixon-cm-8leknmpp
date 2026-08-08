@@ -314,7 +314,7 @@
       <div class="stat-row">
         <div class="stat clickable" onclick="location.hash='#/cases'"><span class="stat-label">Open Cases</span><span class="stat-value">${open.length}</span><span class="stat-note up">3 opened this month</span></div>
         <div class="stat clickable" onclick="location.hash='#/leads'"><span class="stat-label">Active Leads</span><span class="stat-value">${newLeads.length}</span><span class="stat-note up">${chatLeads} from website chat</span></div>
-        <div class="stat clickable" onclick="location.hash='#/documents'"><span class="stat-label">New Documents Filed</span><span class="stat-value">${newDocs.length}</span><span class="stat-note warn">across ${newDocCases} cases</span></div>
+        <div class="stat clickable" onclick="location.hash='#/documents'"><span class="stat-label">New Filings</span><span class="stat-value">${newDocs.length}</span><span class="stat-note warn">across ${newDocCases} cases</span></div>
         <div class="stat clickable" onclick="location.hash='#/settlements'"><span class="stat-label">Pipeline Value</span><span class="stat-value">${money(pipelineValue)}</span><span class="stat-note">est. across open files</span></div>
       </div>
 

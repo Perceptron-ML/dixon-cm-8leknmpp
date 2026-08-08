@@ -286,8 +286,8 @@ button { font-family: var(--font-body); cursor: pointer; }
 
 .pipe-card:hover { border-color: var(--orange); transform: translateY(-1px); box-shadow: var(--shadow); }
 
-.pipe-client { font-weight: 600; font-size: 13px; }
-.pipe-type { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.pipe-client { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pipe-type { font-size: 11.5px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pipe-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
 .pipe-value { font-size: 12px; font-weight: 600; color: var(--green); }
 
@@ -1535,15 +1535,17 @@ tbody tr:last-child td { border-bottom: none; }
 
   .topbar { padding: 10px 12px; gap: 8px; }
   #newCaseBtn span, #newCaseBtn { font-size: 12.5px; padding: 8px 10px; }
-  .content { padding: 16px 12px 90px; }
+  .content { padding: 16px 12px 120px; }
 
   .page-head { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px; }
   .page-title h1 { font-size: 21px; }
   .page-title p { font-size: 12.5px; }
-  .stat-row, .stat-row[style] { grid-template-columns: 1fr 1fr !important; gap: 10px; }
-  .stat { padding: 12px 13px; }
+  .stat-row { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .stat-row[style] { grid-template-columns: 1fr !important; }
+  .stat { padding: 12px 13px; min-height: 104px; justify-content: center; }
+  .stat-label { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stat-value { font-size: 21px; }
-  .stat-note { font-size: 11px; }
+  .stat-note { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .pipe-col { min-width: 158px; width: 158px; }
   .pipeline { padding: 12px; }
@@ -1597,7 +1599,10 @@ tbody tr:last-child td { border-bottom: none; }
   .integration { flex: 1 1 100%; }
   .tabs { scrollbar-width: none; }
   .lead-foot { flex-wrap: wrap; gap: 4px; }
-  .neg-item { flex-wrap: wrap; }
-  .neg-date { margin-left: 0; width: 100%; }
-  .neg-amount { text-align: left; min-width: 0; }
+  .neg-item { display: block; }
+  .neg-amount { text-align: left; min-width: 0; margin-bottom: 3px; }
+  .neg-date { margin-left: 0; display: block; margin-top: 6px; }
+
+  #aiFab { width: 38px; height: 38px; font-size: 13px; left: 66px; bottom: 12px; border-radius: 10px; }
+  #aiPanel { left: 66px; bottom: 58px; max-width: calc(100vw - 78px); }
 }
