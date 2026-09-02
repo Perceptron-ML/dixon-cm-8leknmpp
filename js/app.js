@@ -1681,6 +1681,40 @@
     toast("Drive folder unlinked", { undo: () => { window.Drive.setMapping(caseId, prev); refresh(); } });
   };
 
+  /* Preview a real Drive file inside the case, using Drive's own viewer. */
+  window.openDriveDoc = function (fileId) {
+    const f = (window.__liveFiles || {})[fileId];
+    if (!f) return;
+    const kb = f.size ? (f.size > 1048576 ? (f.size / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(f.size / 1024)) + " KB") : "";
+    openModal(`
+      <div class="viewer">
+        <div class="viewer-head">
+          <div class="viewer-title">
+            <div class="file-icon ${/document|word/.test(f.mimeType || "") ? "docx" : ""}">${I.doc}</div>
+            <div>
+              <div class="viewer-name">${esc(f.name)}</div>
+              <div class="viewer-sub">${esc(f.folder || "")}${f.modified ? " · Modified " + fmtDate(f.modified) : ""}${kb ? " · " + kb : ""}</div>
+            </div>
+          </div>
+          <div class="viewer-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.open('${esc(f.link)}','_blank','noopener')">${I.external}<span>Open in Drive</span></button>
+            <button class="icon-btn" data-close title="Close">${I.x}</button>
+          </div>
+        </div>
+        <div class="viewer-body drive-preview-body">
+          <iframe class="drive-frame" src="https://drive.google.com/file/d/${f.id}/preview" allow="autoplay"></iframe>
+          <aside class="ai-rail">
+            <h3>File</h3>
+            <div class="ai-summary">Stored in the firm's Google Drive, shown here inside the case. Nothing is copied out of Drive.</div>
+            <div class="kv" style="padding-left:0"><div class="kv-label">Folder</div><div class="kv-value">${esc(f.folder || "")}</div></div>
+            <div class="kv" style="padding-left:0"><div class="kv-label">Modified</div><div class="kv-value">${f.modified ? fmtDate(f.modified) : "Unknown"}</div></div>
+            ${kb ? `<div class="kv" style="padding-left:0;border-bottom:none"><div class="kv-label">Size</div><div class="kv-value">${kb}</div></div>` : ""}
+            <div class="ai-foot">In the full build, a new filing is summarized automatically and its dates and amounts are pulled onto the case.</div>
+          </aside>
+        </div>
+      </div>`, true);
+  };
+
   /* renders the mapped folder's real contents into the Documents tab */
   async function renderLiveDocs(c, map, isPoll) {
     const host = $("#liveDocs");
@@ -1711,6 +1745,8 @@
       if (added.length) toast(`${added.length} new file${added.length > 1 ? "s" : ""} in ${activeSub ? activeSub.name : map.name}`);
     }
     seenFiles[key] = ids;
+    window.__liveFiles = window.__liveFiles || {};
+    files.forEach(f => { window.__liveFiles[f.id] = Object.assign({}, f, { folder: activeSub ? activeSub.name : map.name }); });
 
     host.innerHTML = `
       <div class="folder-tree">
@@ -1720,7 +1756,7 @@
       </div>
       <div class="file-list">
         <div class="drop-hint-overlay">${I.upload}<span>Drop to upload into ${esc(activeSub ? activeSub.name : map.name)}</span></div>
-        ${files.map(f => `<div class="file-row" onclick="window.open('${esc(f.link)}','_blank','noopener')">
+        ${files.map(f => `<div class="file-row" onclick="openDriveDoc('${f.id}')">
           <div class="file-icon ${/document|word/.test(f.mimeType) ? "docx" : ""}">${I.doc}</div>
           <div class="feed-body">
             <div class="file-name">${esc(f.name)}</div>
