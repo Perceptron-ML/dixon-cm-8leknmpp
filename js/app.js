@@ -1341,7 +1341,8 @@
       .slice().sort((a, b) => b.date.localeCompare(a.date));
 
     const controls = live
-      ? `<button class="btn btn-ghost btn-sm" id="liveUploadBtn">${I.upload}<span>Upload to Drive</span></button>
+      ? `<button class="btn btn-ghost btn-sm" onclick="refreshDrive(true)" title="Check Google Drive now">${I.flow}<span>Refresh</span></button>
+         <button class="btn btn-ghost btn-sm" id="liveUploadBtn">${I.upload}<span>Upload to Drive</span></button>
          <input type="file" id="liveUploadInput" multiple hidden>
          <button class="btn btn-ghost btn-sm" onclick="driveBrowser('${c.id}')">Change folder</button>
          <button class="btn btn-ghost btn-sm" onclick="unlinkDrive('${c.id}')">Unlink</button>`
@@ -1407,6 +1408,7 @@
       const r = await window.syncCasesFromDrive();
       const n = r.linked + r.created;
       toast("Google Drive connected" + (window.Drive.state.email ? " as " + window.Drive.state.email : "") + (n ? `. ${n} case${n > 1 ? "s" : ""} linked automatically` : ""));
+      window.startDrivePolling();
       after ? after() : refresh();
     } catch (e) {
       const m = e.message || "";
@@ -1497,7 +1499,17 @@
       if (!CASES.find(c => c.id === id)) window.Drive.setMapping(id, null);
     });
     const maps = window.Drive.mappings();
-    const taken = new Set(Object.values(maps).map(m => m.id));
+    /* a folder renamed in Drive renames the case it drives */
+    let renamed = 0;
+    Object.entries(maps).forEach(([caseId, m]) => {
+      const f = folders.find(x => x.id === m.id);
+      if (!f || f.name === m.name) return;
+      window.Drive.setMapping(caseId, { id: f.id, name: f.name });
+      const c = CASES.find(x => x.id === caseId);
+      if (c && c.fromDrive) { c.client = clientFromFolder(f.name); c.driveFolderName = f.name; }
+      renamed++;
+    });
+    const taken = new Set(Object.values(window.Drive.mappings()).map(m => m.id));
     let linked = 0, created = 0;
     folders.forEach(f => {
       if (taken.has(f.id)) return;
@@ -1506,8 +1518,43 @@
       else linked++;
       window.Drive.setMapping(c.id, { id: f.id, name: f.name });
     });
-    return { linked, created };
+    driveLastSync = Date.now();
+    return { linked, created, renamed };
   };
+
+  let driveLastSync = 0, drivePollTimer = null, liveCtx = null;
+  const seenFiles = {};
+
+  window.refreshDrive = async function (manual) {
+    if (!driveLive()) return;
+    let changed = 0;
+    try {
+      const r = await window.syncCasesFromDrive();
+      changed = r.created + r.renamed;
+    } catch (e) { /* transient, next tick retries */ }
+    if (liveCtx && location.hash.indexOf(liveCtx.caseId) > -1) {
+      await renderLiveDocs(liveCtx.c, liveCtx.map, true);
+    } else if (changed) {
+      refresh();
+    }
+    if (changed) {
+      refresh();
+      toast(`${changed} change${changed > 1 ? "s" : ""} picked up from Google Drive`);
+    } else if (manual) {
+      toast("Up to date with Google Drive");
+    }
+  };
+
+  window.startDrivePolling = function () {
+    if (drivePollTimer) return;
+    drivePollTimer = setInterval(() => {
+      if (document.hidden || !driveLive()) return;
+      window.refreshDrive(false);
+    }, 20000);
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && driveLive()) window.refreshDrive(false);
+  });
 
   window.autoMapCases = async function () {
     const root = window.Drive.rootId();
@@ -1635,9 +1682,10 @@
   };
 
   /* renders the mapped folder's real contents into the Documents tab */
-  async function renderLiveDocs(c, map) {
+  async function renderLiveDocs(c, map, isPoll) {
     const host = $("#liveDocs");
     if (!host) return;
+    liveCtx = { caseId: c.id, c, map };
     let children = [];
     try {
       children = await window.Drive.listChildren(map.id);
@@ -1654,6 +1702,16 @@
       try { files = (await window.Drive.listChildren(activeSub.id)).filter(x => !x.isFolder); }
       catch (e) { files = []; }
     }
+    /* announce anything that appeared in Drive since the last look */
+    const key = (activeSub ? activeSub.id : map.id);
+    const ids = files.map(f => f.id).sort().join(",");
+    if (isPoll && seenFiles[key] !== undefined && seenFiles[key] !== ids) {
+      const before = new Set(seenFiles[key].split(",").filter(Boolean));
+      const added = files.filter(f => !before.has(f.id));
+      if (added.length) toast(`${added.length} new file${added.length > 1 ? "s" : ""} in ${activeSub ? activeSub.name : map.name}`);
+    }
+    seenFiles[key] = ids;
+
     host.innerHTML = `
       <div class="folder-tree">
         <div class="folder ${!activeSub ? "active" : ""}" data-live="">${I.folder}<span>${esc(map.name)}</span><span class="folder-count">${rootFiles.length || ""}</span></div>
@@ -2873,6 +2931,7 @@
       const n = r.linked + r.created;
       refresh();
       if (n) toast(`${n} client folder${n > 1 ? "s" : ""} loaded from the firm's Google Drive`);
+      window.startDrivePolling();
     });
   }
   window.addEventListener("hashchange", () => {
