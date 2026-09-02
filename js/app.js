@@ -1316,19 +1316,40 @@
   let activeFolder = null;
 
   function docBrowser(c) {
+    const map = driveMap(c.id);
+    const live = map && driveLive();
     const folders = FOLDER_TEMPLATE;
     const current = activeFolder && folders.includes(activeFolder) ? activeFolder : null;
     const files = c.docs.filter(d => !current || d.folder === current)
       .slice().sort((a, b) => b.date.localeCompare(a.date));
+
+    const controls = live
+      ? `<button class="btn btn-ghost btn-sm" id="liveUploadBtn">${I.upload}<span>Upload to Drive</span></button>
+         <input type="file" id="liveUploadInput" multiple hidden>
+         <button class="btn btn-ghost btn-sm" onclick="driveBrowser('${c.id}')">Change folder</button>
+         <button class="btn btn-ghost btn-sm" onclick="unlinkDrive('${c.id}')">Unlink</button>`
+      : map
+      ? `<button class="btn btn-primary btn-sm" onclick="connectDrive()">Connect Drive</button>`
+      : `<span class="drive-note">${I.cloud} Demo data</span>
+         <button class="btn btn-ghost btn-sm" onclick="driveBrowser('${c.id}')">Link Drive folder</button>
+         <button class="btn btn-ghost btn-sm" id="uploadBtn" data-case="${c.id}">${I.upload}<span>Upload</span></button>
+         <input type="file" id="uploadInput" multiple hidden>`;
+
+    const strip = live
+      ? `<div class="live-strip"><span class="live-dot"></span><span>Live from Google Drive · <strong>${esc(map.name)}</strong>${window.Drive.state.email ? ` · ${esc(window.Drive.state.email)}` : ""}</span></div>`
+      : map
+      ? `<div class="live-strip off"><span>Linked to "${esc(map.name)}" · sign in to Google to show live files</span></div>`
+      : "";
+
+    if (live) setTimeout(() => renderLiveDocs(c, map), 0);
+
     return `<div class="card">
       <div class="card-head">
         <h2>Documents</h2>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span class="drive-note">${I.cloud} Synced with Google Drive · Clients / ${esc(c.client)} / ${c.num}</span>
-          <button class="btn btn-ghost btn-sm" id="uploadBtn" data-case="${c.id}">${I.upload}<span>Upload</span></button>
-          <input type="file" id="uploadInput" multiple hidden>
-        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${controls}</div>
       </div>
+      ${strip}
+      ${live ? `<div class="doc-layout" id="liveDocs"><div class="empty-state">Reading your Drive folder</div></div>` : `
       <div class="doc-layout">
         <div class="folder-tree">
           <div class="folder ${!current ? "active" : ""}" data-folder="">${I.folder}<span>All files</span><span class="folder-count">${c.docs.length}</span></div>
@@ -1349,8 +1370,204 @@
             </div>
           </div>`).join("") || `<div class="empty-state">No files in this folder yet. Drag one in or click Upload.</div>`}
         </div>
-      </div>
+      </div>`}
     </div>`;
+  }
+
+  /* ---------- live Google Drive overlay ---------- */
+
+  let liveSub = null;
+
+  const driveMap = id => (window.Drive ? window.Drive.mappings()[id] : null);
+  const driveLive = () => !!(window.Drive && window.Drive.isLive());
+
+  window.connectDrive = async function (after) {
+    if (!window.Drive) return;
+    if (!window.Drive.clientId()) return driveSetup(after);
+    try {
+      await window.Drive.connect();
+      toast("Google Drive connected" + (window.Drive.state.email ? " as " + window.Drive.state.email : ""));
+      after ? after() : refresh();
+    } catch (e) {
+      const m = e.message || "";
+      if (m === "no-client-id" || m.indexOf("invalid_client") > -1) driveSetup(after);
+      else if (m === "gis-not-loaded") toast("Google sign-in is still loading. Try again in a second");
+      else if (m === "popup-blocked") toast("Allow popups for this site, then try again");
+      else if (m === "access_denied") toast("Access was declined at the Google prompt");
+      else toast("Could not connect to Drive: " + m);
+    }
+  };
+
+  window.disconnectDrive = function () {
+    window.Drive.disconnect();
+    refresh();
+    toast("Google Drive disconnected");
+  };
+
+  function driveSetup(after) {
+    openModal(`
+      <div class="form-head"><h2>Connect Google Drive</h2><button class="icon-btn" data-close>${I.x}</button></div>
+      <div class="form-note">One-time setup. Paste the OAuth client ID for this firm's Google Cloud project. It is stored in this browser only.</div>
+      <div class="form-grid form-grid-1">
+        <label>OAuth client ID<input id="dv-id" type="text" placeholder="1234567890-abc123.apps.googleusercontent.com" value="${esc(window.Drive.clientId())}"></label>
+      </div>
+      <div class="drive-help">
+        <div class="dh-step"><span>1</span><div>In console.cloud.google.com, create a project and enable the <strong>Google Drive API</strong></div></div>
+        <div class="dh-step"><span>2</span><div>Under Credentials, create an <strong>OAuth client ID</strong> of type Web application</div></div>
+        <div class="dh-step"><span>3</span><div>Add this as an <strong>Authorized JavaScript origin</strong><br><code>${esc(location.origin)}</code></div></div>
+        <div class="dh-step"><span>4</span><div>On the consent screen, add your Google account under <strong>Test users</strong>, then paste the client ID above</div></div>
+      </div>
+      <div class="form-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="dv-save">Save and connect</button></div>`);
+    $("#dv-id").focus();
+    $("#dv-save").addEventListener("click", () => {
+      const v = $("#dv-id").value.trim();
+      if (!v) return;
+      window.Drive.setClientId(v);
+      closeModal();
+      window.connectDrive(after);
+    });
+  }
+
+  /* folder picker against the real Drive */
+  window.driveBrowser = async function (caseId) {
+    if (!driveLive()) return window.connectDrive(() => window.driveBrowser(caseId));
+    const c = caseById(caseId);
+    let stack = [];
+
+    const shell = body => `
+      <div class="form-head"><h2>Link a Drive folder</h2><button class="icon-btn" data-close>${I.x}</button></div>
+      <div class="form-note">Pick the client folder for <strong>${esc(c.client)}</strong>. Its subfolders become this case's document tabs.</div>
+      <div class="dv-crumb" id="dvCrumb"></div>
+      <div class="dv-list" id="dvList">${body}</div>
+      <div class="form-foot">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="dvPick" ${stack.length ? "" : "disabled"}>Link this folder</button>
+      </div>`;
+
+    openModal(shell(`<div class="empty-state">Loading your Drive</div>`), true);
+
+    const draw = async () => {
+      const crumb = $("#dvCrumb");
+      const list = $("#dvList");
+      const pick = $("#dvPick");
+      if (!crumb || !list) return;
+      crumb.innerHTML = `<button class="dv-cr" data-idx="-1">Drive</button>` +
+        stack.map((f, i) => `<span class="sep">/</span><button class="dv-cr" data-idx="${i}">${esc(f.name)}</button>`).join("");
+      list.innerHTML = `<div class="empty-state">Loading</div>`;
+      pick.disabled = !stack.length;
+      pick.textContent = stack.length ? `Link "${stack[stack.length - 1].name}"` : "Link this folder";
+      let items = [];
+      try {
+        items = stack.length ? await window.Drive.listChildren(stack[stack.length - 1].id) : await window.Drive.listRoots();
+      } catch (e) {
+        list.innerHTML = `<div class="empty-state">Could not read Drive: ${esc(e.message)}</div>`;
+        return;
+      }
+      const folders = items.filter(x => x.isFolder);
+      const files = items.filter(x => !x.isFolder);
+      list.innerHTML =
+        (folders.map(f => `<div class="dv-row" data-open="${f.id}" data-name="${esc(f.name)}">
+            ${I.folder}<span class="dv-name">${esc(f.name)}</span>${f.driveRoot ? '<span class="dv-tag">Shared drive</span>' : f.shared ? '<span class="dv-tag">Shared</span>' : ""}
+          </div>`).join("") || "") +
+        (files.map(f => `<div class="dv-row dv-file">${I.doc}<span class="dv-name">${esc(f.name)}</span></div>`).join("")) +
+        (!items.length ? `<div class="empty-state">This folder is empty</div>` : "");
+      list.querySelectorAll("[data-open]").forEach(r => r.addEventListener("click", () => {
+        stack.push({ id: r.dataset.open, name: r.dataset.name });
+        draw();
+      }));
+      crumb.querySelectorAll(".dv-cr").forEach(b => b.addEventListener("click", () => {
+        stack = stack.slice(0, Number(b.dataset.idx) + 1);
+        draw();
+      }));
+      pick.onclick = () => {
+        const f = stack[stack.length - 1];
+        if (!f) return;
+        window.Drive.setMapping(c.id, { id: f.id, name: f.name });
+        liveSub = null;
+        closeModal();
+        refresh();
+        toast(`${c.client} linked to the Drive folder "${f.name}"`);
+      };
+    };
+    draw();
+  };
+
+  window.unlinkDrive = function (caseId) {
+    const prev = driveMap(caseId);
+    window.Drive.setMapping(caseId, null);
+    liveSub = null;
+    refresh();
+    toast("Drive folder unlinked", { undo: () => { window.Drive.setMapping(caseId, prev); refresh(); } });
+  };
+
+  /* renders the mapped folder's real contents into the Documents tab */
+  async function renderLiveDocs(c, map) {
+    const host = $("#liveDocs");
+    if (!host) return;
+    let children = [];
+    try {
+      children = await window.Drive.listChildren(map.id);
+    } catch (e) {
+      host.innerHTML = `<div class="empty-state">Could not read that folder: ${esc(e.message)}.
+        <button class="btn btn-ghost btn-sm" onclick="connectDrive()">Reconnect</button></div>`;
+      return;
+    }
+    const subs = children.filter(x => x.isFolder);
+    const rootFiles = children.filter(x => !x.isFolder);
+    const activeSub = liveSub && subs.find(s => s.id === liveSub) ? subs.find(s => s.id === liveSub) : null;
+    let files = rootFiles;
+    if (activeSub) {
+      try { files = (await window.Drive.listChildren(activeSub.id)).filter(x => !x.isFolder); }
+      catch (e) { files = []; }
+    }
+    host.innerHTML = `
+      <div class="folder-tree">
+        <div class="folder ${!activeSub ? "active" : ""}" data-live="">${I.folder}<span>${esc(map.name)}</span><span class="folder-count">${rootFiles.length || ""}</span></div>
+        ${subs.map(f => `<div class="folder ${activeSub && activeSub.id === f.id ? "active" : ""}" data-live="${f.id}">${I.folder}<span>${esc(f.name)}</span></div>`).join("")}
+        ${!subs.length ? `<div class="empty-state" style="padding:14px 8px;font-size:12px">No subfolders yet</div>` : ""}
+      </div>
+      <div class="file-list">
+        <div class="drop-hint-overlay">${I.upload}<span>Drop to upload into ${esc(activeSub ? activeSub.name : map.name)}</span></div>
+        ${files.map(f => `<div class="file-row" onclick="window.open('${esc(f.link)}','_blank','noopener')">
+          <div class="file-icon ${/document|word/.test(f.mimeType) ? "docx" : ""}">${I.doc}</div>
+          <div class="feed-body">
+            <div class="file-name">${esc(f.name)}</div>
+            <div class="file-meta">${esc(activeSub ? activeSub.name : map.name)}${f.modified ? " · Modified " + fmtDate(f.modified) : ""}</div>
+          </div>
+        </div>`).join("") || `<div class="empty-state">No files in this folder yet. Add one in Drive and refresh.</div>`}
+      </div>`;
+    host.querySelectorAll("[data-live]").forEach(f => f.addEventListener("click", () => {
+      liveSub = f.dataset.live || null;
+      renderLiveDocs(c, map);
+    }));
+
+    const target = () => ({ id: activeSub ? activeSub.id : map.id, name: activeSub ? activeSub.name : map.name });
+    const push = async list => {
+      const dest = target();
+      if (!list.length) return;
+      toast(`Uploading ${list.length} file${list.length > 1 ? "s" : ""} to ${dest.name}`);
+      try {
+        for (const f of list) await window.Drive.uploadFile(dest.id, f);
+        logActivity(`${list.length} document${list.length > 1 ? "s" : ""} uploaded to Drive folder ${dest.name} on ${c.client}`);
+        await renderLiveDocs(c, map);
+        toast(`Filed to ${dest.name} in Google Drive`);
+      } catch (e) {
+        toast("Upload failed: " + e.message);
+      }
+    };
+
+    const btn = $("#liveUploadBtn"), input = $("#liveUploadInput");
+    if (btn && input && !btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => { push([...input.files]); input.value = ""; });
+    }
+    const fl = host.querySelector(".file-list");
+    if (fl) {
+      fl.addEventListener("dragover", e => { e.preventDefault(); fl.classList.add("dragging-over"); });
+      fl.addEventListener("dragleave", e => { if (e.target === fl) fl.classList.remove("dragging-over"); });
+      fl.addEventListener("drop", e => { e.preventDefault(); fl.classList.remove("dragging-over"); push([...(e.dataTransfer.files || [])]); });
+    }
   }
 
   let docLimit = 15;
@@ -1934,6 +2151,31 @@
 
     document.querySelectorAll("[data-manage]").forEach(b => b.addEventListener("click", () => {
       const x = INTEGRATIONS[+b.dataset.manage];
+      if (x.name === "Google Drive") {
+        const on = driveLive();
+        const linked = Object.entries(window.Drive.mappings());
+        openModal(`
+          <div class="form-head"><h2>Google Drive</h2><button class="icon-btn" data-close>${I.x}</button></div>
+          <div class="check-list">
+            <div class="check-item no-click"><div style="min-width:0"><div class="check-label">Status</div>
+              <div class="td-sub">${on ? "Connected as " + esc(window.Drive.state.email || "this account") : "Not connected"}</div></div>
+              <span class="int-dot ${on ? "" : "off"}" style="margin-left:auto"></span></div>
+            <div class="check-item no-click"><div style="min-width:0"><div class="check-label">Access</div>
+              <div class="td-sub">Read only. The firm's files stay in the firm's Drive.</div></div></div>
+            <div class="check-item no-click"><div style="min-width:0"><div class="check-label">Linked case folders</div>
+              <div class="td-sub">${linked.length ? linked.map(([id, f]) => esc((caseById(id) || {}).client || id) + " to " + esc(f.name)).join("<br>") : "None yet. Open a case, then Documents, then Link Drive folder."}</div></div></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-ghost" data-close>Close</button>
+            ${on ? '<button class="btn btn-ghost" id="dv-off" style="color:var(--red);border-color:var(--red)">Disconnect</button>'
+                 : '<button class="btn btn-primary" id="dv-on">Connect Google Drive</button>'}
+            <button class="btn btn-ghost" id="dv-cfg">Change client ID</button>
+          </div>`);
+        const on1 = $("#dv-on"); if (on1) on1.addEventListener("click", () => { closeModal(); window.connectDrive(); });
+        const off = $("#dv-off"); if (off) off.addEventListener("click", () => { closeModal(); window.disconnectDrive(); });
+        $("#dv-cfg").addEventListener("click", () => { closeModal(); driveSetup(); });
+        return;
+      }
       openModal(`
         <div class="form-head"><h2>${esc(x.name)}</h2><button class="icon-btn" data-close>${I.x}</button></div>
         <div class="check-list">
