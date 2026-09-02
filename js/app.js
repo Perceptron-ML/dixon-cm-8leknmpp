@@ -1404,7 +1404,8 @@
     try {
       await window.Drive.connect();
       markApproved();
-      const n = await window.autoMapCases();
+      const r = await window.syncCasesFromDrive();
+      const n = r.linked + r.created;
       toast("Google Drive connected" + (window.Drive.state.email ? " as " + window.Drive.state.email : "") + (n ? `. ${n} case${n > 1 ? "s" : ""} linked automatically` : ""));
       after ? after() : refresh();
     } catch (e) {
@@ -1454,6 +1455,59 @@
     });
   }
   window.namesMatch = namesMatch;
+
+  /* "Doe, Jonn" -> "Jonn Doe", preserving the firm's own spelling exactly */
+  function clientFromFolder(name) {
+    const m = String(name).match(/^\s*([^,]+),\s*(.+?)\s*$/);
+    return m ? (m[2].trim() + " " + m[1].trim()) : String(name).trim();
+  }
+
+  /* Build a full case record from a real Drive folder. The Drive is the source
+     of truth: every client folder becomes a case, named exactly as the firm named it. */
+  function caseFromFolder(folder) {
+    const client = clientFromFolder(folder.name);
+    const id = "gd" + folder.id.slice(-8);
+    return {
+      id, num: "DIF-" + folder.id.slice(-4).toUpperCase(), client,
+      type: "Unassigned", stage: "Intake", opened: TODAY, incident: TODAY,
+      phone: "Not set", email: "Not set",
+      insurer: "Not set", adjuster: "Unassigned", claimNo: "Pending",
+      paralegal: "Unassigned", attorney: "Chris Dixon",
+      estValue: 0, sol: TODAY,
+      facts: `Opened automatically from the firm's Google Drive folder "${folder.name}". Case details fill in as the file is worked.`,
+      medicals: [], negotiation: [], lienLedger: [], expenses: [], emails: [], docs: [],
+      checklist: [{ label: "Complete intake details", done: false, due: TODAY }],
+      notes: [{ date: TODAY, by: "System", text: `Case created from the Drive folder "${folder.name}".` }],
+      policy: { liability: "Not set", um: "Not set" },
+      pref: "Call", language: "English", source: "Google Drive",
+      fromDrive: true, driveFolderName: folder.name
+    };
+  }
+
+  /* Pull the firm's client folders in as cases, and link folders that already
+     belong to a case. Returns how many were linked and how many were created. */
+  window.syncCasesFromDrive = async function () {
+    const root = window.Drive.rootId();
+    if (!root || !driveLive()) return { linked: 0, created: 0 };
+    let folders = [];
+    try { folders = (await window.Drive.listChildren(root)).filter(f => f.isFolder); }
+    catch (e) { return { linked: 0, created: 0 }; }
+    /* drop mappings whose case no longer exists, so its folder can re-link */
+    Object.keys(window.Drive.mappings()).forEach(id => {
+      if (!CASES.find(c => c.id === id)) window.Drive.setMapping(id, null);
+    });
+    const maps = window.Drive.mappings();
+    const taken = new Set(Object.values(maps).map(m => m.id));
+    let linked = 0, created = 0;
+    folders.forEach(f => {
+      if (taken.has(f.id)) return;
+      let c = CASES.find(x => !maps[x.id] && namesMatch(f.name, x.client));
+      if (!c) { c = caseFromFolder(f); CASES.push(c); created++; }
+      else linked++;
+      window.Drive.setMapping(c.id, { id: f.id, name: f.name });
+    });
+    return { linked, created };
+  };
 
   window.autoMapCases = async function () {
     const root = window.Drive.rootId();
@@ -2815,7 +2869,11 @@
   bindBell();
   bindSearch();
   if (window.Drive && window.Drive.restoreSession && window.Drive.restoreSession()) {
-    window.autoMapCases().then(n => { refresh(); if (n) toast(`${n} case${n > 1 ? "s" : ""} linked to the firm's Drive folders`); });
+    window.syncCasesFromDrive().then(r => {
+      const n = r.linked + r.created;
+      refresh();
+      if (n) toast(`${n} client folder${n > 1 ? "s" : ""} loaded from the firm's Google Drive`);
+    });
   }
   window.addEventListener("hashchange", () => {
     if (suppressRoute) { suppressRoute = false; return; }
