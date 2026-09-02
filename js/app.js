@@ -439,10 +439,13 @@
             <span>Google Drive connected${window.Drive.state.email ? " as " + esc(window.Drive.state.email) : ""}. ${mapped ? mapped + " case folder" + (mapped > 1 ? "s" : "") + " linked." : "Open a case, then Documents, to link a client folder."}</span>
             <button class="btn btn-ghost btn-sm" onclick="location.hash='#/settings'">Manage</button>
           </div>`;
+        const seen = window.driveWasApproved();
         return `<div class="drive-banner">
             ${I.cloud}
-            <span>Google Drive is not connected. Connect it to show the firm's real client folders inside every case.</span>
-            <button class="btn btn-primary btn-sm" onclick="connectDrive()">Connect Google Drive</button>
+            <span>${seen
+              ? "Reconnect the firm's Google Drive to show live client folders. Already approved on this browser, so it takes one click."
+              : "Google Drive is not connected. Connect it to show the firm's real client folders inside every case."}</span>
+            <button class="btn btn-primary btn-sm" onclick="connectDrive()">${seen ? "Reconnect" : "Connect"} Google Drive</button>
           </div>`;
       })()}
       <div class="stat-row">
@@ -1400,6 +1403,7 @@
     if (!window.Drive.clientId()) return driveSetup(after);
     try {
       await window.Drive.connect();
+      markApproved();
       const n = await window.autoMapCases();
       toast("Google Drive connected" + (window.Drive.state.email ? " as " + window.Drive.state.email : "") + (n ? `. ${n} case${n > 1 ? "s" : ""} linked automatically` : ""));
       after ? after() : refresh();
@@ -1431,18 +1435,13 @@
     return n;
   };
 
-  /* Reconnect without a prompt if this browser already approved the firm Drive */
-  window.driveAutoResume = async function () {
-    if (!window.Drive || !window.Drive.clientId() || driveLive()) return;
-    for (let i = 0; i < 20 && !window.Drive.gisReady(); i++) await new Promise(r => setTimeout(r, 250));
-    if (!window.Drive.gisReady()) return;
-    try {
-      await window.Drive.connect(false);
-      const n = await window.autoMapCases();
-      refresh();
-      if (n) toast(`Google Drive reconnected. ${n} case${n > 1 ? "s" : ""} linked to their Drive folders`);
-    } catch (e) { /* not previously approved, leave the connect button */ }
-  };
+  /* A static site cannot hold a Google credential, so a session always starts
+     signed out. We remember that this browser approved the firm Drive before,
+     so reconnecting is one click with no consent prompt. */
+  const APPROVED = "dixon.driveApproved";
+  const wasApproved = () => { try { return localStorage.getItem(APPROVED) === "1"; } catch (e) { return false; } };
+  const markApproved = () => { try { localStorage.setItem(APPROVED, "1"); } catch (e) {} };
+  window.driveWasApproved = wasApproved;
 
   window.disconnectDrive = function () {
     window.Drive.disconnect();
@@ -2780,7 +2779,6 @@
   });
   bindBell();
   bindSearch();
-  window.driveAutoResume();
   window.addEventListener("hashchange", () => {
     if (suppressRoute) { suppressRoute = false; return; }
     route();
