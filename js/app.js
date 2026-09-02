@@ -1417,8 +1417,43 @@
     }
   };
 
-  /* Match cases to real Drive folders by client name: "Doe, John" == "John Doe" */
-  const nameKey = s => String(s).toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean).sort().join(" ");
+  /* Match cases to real Drive folders by client name.
+     Tolerant of ordering ("Doe, John" == "John Doe") and of small typos
+     ("Doe, Jonn"), because real folder names are typed by hand. */
+  const nameTokens = s => String(s).toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean);
+
+  function editDistance(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  function namesMatch(folderName, clientName) {
+    const A = nameTokens(folderName), B = nameTokens(clientName);
+    if (!A.length || A.length !== B.length) return false;
+    const used = new Array(B.length).fill(false);
+    return A.every(a => {
+      const i = B.findIndex((b, k) => {
+        if (used[k]) return false;
+        if (a === b) return true;
+        /* allow one typo once a name is long enough for it to be unambiguous */
+        return Math.min(a.length, b.length) >= 4 && editDistance(a, b) <= 1;
+      });
+      if (i === -1) return false;
+      used[i] = true;
+      return true;
+    });
+  }
+  window.namesMatch = namesMatch;
 
   window.autoMapCases = async function () {
     const root = window.Drive.rootId();
@@ -1429,7 +1464,7 @@
     let n = 0;
     CASES.forEach(c => {
       if (window.Drive.mappings()[c.id]) return;
-      const hit = folders.find(f => nameKey(f.name) === nameKey(c.client));
+      const hit = folders.find(f => namesMatch(f.name, c.client));
       if (hit) { window.Drive.setMapping(c.id, { id: hit.id, name: hit.name }); n++; }
     });
     return n;
