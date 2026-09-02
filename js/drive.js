@@ -29,6 +29,8 @@
   const gisReady = () => !!(window.google && google.accounts && google.accounts.oauth2);
   const isLive = () => state.connected && Date.now() < state.expiresAt;
 
+  const rootId = () => (window.DRIVE_ROOT_ID || "").trim();
+
   function connect(interactive) {
     return new Promise((resolve, reject) => {
       const id = clientId();
@@ -38,7 +40,7 @@
       const client = google.accounts.oauth2.initTokenClient({
         client_id: id,
         scope: SCOPE,
-        prompt: interactive === false ? "none" : "",
+        prompt: interactive === false ? "none" : "consent",
         callback: resp => {
           settled = true;
           if (resp.error) return reject(new Error(resp.error));
@@ -144,7 +146,7 @@
   }
 
   window.Drive = {
-    connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder,
+    connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder, rootId,
     mappings, setMapping, clientId, setClientId,
     isLive, gisReady, state
   };

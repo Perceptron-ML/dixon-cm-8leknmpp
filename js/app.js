@@ -1400,7 +1400,8 @@
     if (!window.Drive.clientId()) return driveSetup(after);
     try {
       await window.Drive.connect();
-      toast("Google Drive connected" + (window.Drive.state.email ? " as " + window.Drive.state.email : ""));
+      const n = await window.autoMapCases();
+      toast("Google Drive connected" + (window.Drive.state.email ? " as " + window.Drive.state.email : "") + (n ? `. ${n} case${n > 1 ? "s" : ""} linked automatically` : ""));
       after ? after() : refresh();
     } catch (e) {
       const m = e.message || "";
@@ -1410,6 +1411,37 @@
       else if (m === "access_denied") toast("Access was declined at the Google prompt");
       else toast("Could not connect to Drive: " + m);
     }
+  };
+
+  /* Match cases to real Drive folders by client name: "Doe, John" == "John Doe" */
+  const nameKey = s => String(s).toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean).sort().join(" ");
+
+  window.autoMapCases = async function () {
+    const root = window.Drive.rootId();
+    if (!root || !driveLive()) return 0;
+    let folders = [];
+    try { folders = (await window.Drive.listChildren(root)).filter(f => f.isFolder); }
+    catch (e) { return 0; }
+    let n = 0;
+    CASES.forEach(c => {
+      if (window.Drive.mappings()[c.id]) return;
+      const hit = folders.find(f => nameKey(f.name) === nameKey(c.client));
+      if (hit) { window.Drive.setMapping(c.id, { id: hit.id, name: hit.name }); n++; }
+    });
+    return n;
+  };
+
+  /* Reconnect without a prompt if this browser already approved the firm Drive */
+  window.driveAutoResume = async function () {
+    if (!window.Drive || !window.Drive.clientId() || driveLive()) return;
+    for (let i = 0; i < 20 && !window.Drive.gisReady(); i++) await new Promise(r => setTimeout(r, 250));
+    if (!window.Drive.gisReady()) return;
+    try {
+      await window.Drive.connect(false);
+      const n = await window.autoMapCases();
+      refresh();
+      if (n) toast(`Google Drive reconnected. ${n} case${n > 1 ? "s" : ""} linked to their Drive folders`);
+    } catch (e) { /* not previously approved, leave the connect button */ }
   };
 
   window.disconnectDrive = function () {
@@ -1446,7 +1478,7 @@
   window.driveBrowser = async function (caseId) {
     if (!driveLive()) return window.connectDrive(() => window.driveBrowser(caseId));
     const c = caseById(caseId);
-    let stack = [];
+    let stack = window.Drive.rootId() ? [{ id: window.Drive.rootId(), name: "Firm Drive" }] : [];
 
     const shell = body => `
       <div class="form-head"><h2>Link a Drive folder</h2><button class="icon-btn" data-close>${I.x}</button></div>
@@ -2748,6 +2780,7 @@
   });
   bindBell();
   bindSearch();
+  window.driveAutoResume();
   window.addEventListener("hashchange", () => {
     if (suppressRoute) { suppressRoute = false; return; }
     route();

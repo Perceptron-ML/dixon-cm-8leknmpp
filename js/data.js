@@ -496,6 +496,28 @@ const CASES = [
       { folder: "05 Evidence & Police Report", name: "Animal control incident history.pdf", date: "2026-04-02", isNew: false, ai: "Same dog reported for a bite in June 2024. Owner cited twice for leash violations." }
     ]
   }
+  ,{
+    id: "c19", num: "DIF-2026-053", client: "John Doe", type: "Car Accident",
+    stage: "Investigation", opened: "2026-08-05", incident: "2026-07-28",
+    phone: "(314) 555-0100", email: "jdoe@example.com",
+    insurer: "State Farm", adjuster: "Karen Voss", claimNo: "55-N220-118",
+    paralegal: "Dana Ellis", attorney: "Chris Dixon",
+    estValue: 45000, sol: "2031-07-28",
+    facts: "Rear-ended at a light on Manchester Road in Maplewood. Treating for neck and lower back pain. This file is linked to the firm's live Google Drive folder.",
+    medicals: [
+      { provider: "SSM Health St. Mary's", status: "Requested", billed: 3200, lien: 0 }
+    ],
+    negotiation: [],
+    checklist: [
+      { label: "Retainer signed", done: true, date: "2026-08-05" },
+      { label: "Crash report request", done: false, due: "2026-08-14" },
+      { label: "Letter of representation to State Farm", done: false, due: "2026-08-12" }
+    ],
+    notes: [
+      { date: "2026-08-05", by: "Dana Ellis", text: "File opened. Documents tab reads directly from the firm's Google Drive folder for this client." }
+    ],
+    docs: []
+  }
 ];
 
 /* Litigation details for cases in suit */
