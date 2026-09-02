@@ -431,6 +431,20 @@
         <button class="btn btn-ghost" onclick="location.hash='#/documents'">Review ${newDocs.length} new filings</button>
       </div>
 
+      ${(() => {
+        const live = driveLive();
+        const mapped = window.Drive ? Object.keys(window.Drive.mappings()).length : 0;
+        if (live) return `<div class="drive-banner on">
+            <span class="live-dot"></span>
+            <span>Google Drive connected${window.Drive.state.email ? " as " + esc(window.Drive.state.email) : ""}. ${mapped ? mapped + " case folder" + (mapped > 1 ? "s" : "") + " linked." : "Open a case, then Documents, to link a client folder."}</span>
+            <button class="btn btn-ghost btn-sm" onclick="location.hash='#/settings'">Manage</button>
+          </div>`;
+        return `<div class="drive-banner">
+            ${I.cloud}
+            <span>Google Drive is not connected. Connect it to show the firm's real client folders inside every case.</span>
+            <button class="btn btn-primary btn-sm" onclick="connectDrive()">Connect Google Drive</button>
+          </div>`;
+      })()}
       <div class="stat-row">
         <div class="stat clickable" onclick="location.hash='#/cases'"><span class="stat-label">Open Cases</span><span class="stat-value">${open.length}</span><span class="stat-note up">3 opened this month</span></div>
         <div class="stat clickable" onclick="location.hash='#/leads'"><span class="stat-label">Active Leads</span><span class="stat-value">${newLeads.length}</span><span class="stat-note up">${chatLeads} from website chat</span></div>

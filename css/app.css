@@ -1783,3 +1783,20 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .live-strip strong { font-weight: 700; }
 .live-strip.off { background: var(--amber-soft); color: var(--amber); }
+
+.drive-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--orange);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 13px 16px;
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  flex-wrap: wrap;
+}
+.drive-banner svg { width: 17px; height: 17px; color: var(--orange); flex-shrink: 0; }
+.drive-banner span { min-width: 0; }
+.drive-banner .btn { margin-left: auto; flex-shrink: 0; }
+.drive-banner.on { border-left-color: var(--green); }
