@@ -2779,6 +2779,9 @@
   });
   bindBell();
   bindSearch();
+  if (window.Drive && window.Drive.restoreSession && window.Drive.restoreSession()) {
+    window.autoMapCases().then(n => { refresh(); if (n) toast(`${n} case${n > 1 ? "s" : ""} linked to the firm's Drive folders`); });
+  }
   window.addEventListener("hashchange", () => {
     if (suppressRoute) { suppressRoute = false; return; }
     route();

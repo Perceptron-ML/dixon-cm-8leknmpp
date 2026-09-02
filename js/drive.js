@@ -9,7 +9,28 @@
   const LS_MAP = "dixon.driveMap";
   const FIELDS = "files(id,name,mimeType,modifiedTime,size,webViewLink)";
 
+  const LS_TOK = "dixon.driveSession";
   const state = { token: null, expiresAt: 0, connected: false, email: null };
+
+  function saveSession() {
+    try {
+      localStorage.setItem(LS_TOK, JSON.stringify({
+        token: state.token, expiresAt: state.expiresAt, email: state.email
+      }));
+    } catch (e) {}
+  }
+  function clearSession() { try { localStorage.removeItem(LS_TOK); } catch (e) {} }
+  function restoreSession() {
+    try {
+      const raw = localStorage.getItem(LS_TOK);
+      if (!raw) return false;
+      const v = JSON.parse(raw);
+      /* keep a minute of headroom so we never use a token mid-expiry */
+      if (!v.token || !v.expiresAt || Date.now() > v.expiresAt - 60000) { clearSession(); return false; }
+      state.token = v.token; state.expiresAt = v.expiresAt; state.email = v.email; state.connected = true;
+      return true;
+    } catch (e) { return false; }
+  }
 
   const ls = {
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
@@ -47,7 +68,8 @@
           state.token = resp.access_token;
           state.expiresAt = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
           state.connected = true;
-          whoAmI().then(() => resolve(state)).catch(() => resolve(state));
+          saveSession();
+          whoAmI().then(() => { saveSession(); resolve(state); }).catch(() => resolve(state));
         },
         error_callback: err => { settled = true; reject(new Error((err && err.type) || "popup-blocked")); }
       });
@@ -59,6 +81,7 @@
   function disconnect() {
     if (state.token && gisReady()) { try { google.accounts.oauth2.revoke(state.token, () => {}); } catch (e) {} }
     state.token = null; state.connected = false; state.expiresAt = 0; state.email = null;
+    clearSession();
   }
 
   async function api(path, params, base) {
@@ -66,7 +89,7 @@
     const url = new URL((base || "https://www.googleapis.com/drive/v3/") + path);
     Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
     const r = await fetch(url.toString(), { headers: { Authorization: "Bearer " + state.token } });
-    if (r.status === 401) { state.connected = false; throw new Error("expired"); }
+    if (r.status === 401) { state.connected = false; clearSession(); throw new Error("expired"); }
     if (!r.ok) throw new Error("drive-" + r.status);
     return r.json();
   }
@@ -146,7 +169,7 @@
   }
 
   window.Drive = {
-    connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder, rootId,
+    connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder, rootId, restoreSession,
     mappings, setMapping, clientId, setClientId,
     isLive, gisReady, state
   };
