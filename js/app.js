@@ -433,6 +433,14 @@
 
       ${(() => {
         const live = driveLive();
+        if (window.Drive && window.Drive.proxyMode()) {
+          const mapped = Object.keys(window.Drive.mappings()).length;
+          return `<div class="drive-banner on">
+              <span class="live-dot"></span>
+              <span>Live from the firm's Google Drive.${mapped ? " " + mapped + " client folder" + (mapped > 1 ? "s" : "") + " connected." : ""}</span>
+              <button class="btn btn-ghost btn-sm" onclick="refreshDrive(true)">Refresh</button>
+            </div>`;
+        }
         const mapped = window.Drive ? Object.keys(window.Drive.mappings()).length : 0;
         if (live) return `<div class="drive-banner on">
             <span class="live-dot"></span>
@@ -1548,6 +1556,7 @@
   window.startDrivePolling = function () {
     if (drivePollTimer) return;
     drivePollTimer = setInterval(async () => {
+      if (window.Drive.proxyMode()) { if (!document.hidden) window.refreshDrive(false); return; }
       if (!window.Drive.state.connected) return;
       /* keep the session alive even while the tab sits in the background */
       const ok = await window.Drive.ensureFresh();
@@ -1713,7 +1722,7 @@
           </div>
         </div>
         <div class="viewer-body drive-preview-body">
-          <iframe class="drive-frame" src="https://drive.google.com/file/d/${f.id}/preview" allow="autoplay"></iframe>
+          <iframe class="drive-frame" src="${window.Drive.fileUrl(f.id)}" allow="autoplay"></iframe>
           <aside class="ai-rail">
             <h3>File</h3>
             <div class="ai-summary">Stored in the firm's Google Drive, shown here inside the case. Nothing is copied out of Drive.</div>
@@ -2973,7 +2982,9 @@
   });
   bindBell();
   bindSearch();
-  if (window.Drive && window.Drive.restoreSession && window.Drive.restoreSession()) {
+  if (window.Drive && window.Drive.proxyMode()) {
+    window.syncCasesFromDrive().then(r => { refresh(); window.startDrivePolling(); });
+  } else if (window.Drive && window.Drive.restoreSession && window.Drive.restoreSession()) {
     window.syncCasesFromDrive().then(r => {
       const n = r.linked + r.created;
       refresh();

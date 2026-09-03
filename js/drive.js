@@ -48,7 +48,28 @@
   }
 
   const gisReady = () => !!(window.google && google.accounts && google.accounts.oauth2);
-  const isLive = () => state.connected && Date.now() < state.expiresAt;
+
+  /* When a proxy is configured the firm's credential lives server side and the
+     demo is readable by anyone, with no Google sign in at all. */
+  const proxyUrl = () => (window.DRIVE_PROXY || "").replace(/\/+$/, "");
+  const proxyMode = () => !!proxyUrl();
+
+  const isLive = () => proxyMode() || (state.connected && Date.now() < state.expiresAt);
+
+  async function proxyGet(path, params) {
+    const u = new URL(proxyUrl() + path);
+    Object.entries(params || {}).forEach(([k, v]) => v != null && u.searchParams.set(k, v));
+    const r = await fetch(u.toString());
+    if (!r.ok) throw new Error("proxy " + r.status);
+    return r.json();
+  }
+
+  /* URL the viewer can render directly: proxied bytes, or Drive's own preview */
+  function fileUrl(id) {
+    return proxyMode()
+      ? proxyUrl() + "/api/file/" + id
+      : "https://drive.google.com/file/d/" + id + "/preview";
+  }
 
   const rootId = () => (window.DRIVE_ROOT_ID || "").trim();
 
@@ -169,6 +190,10 @@
   }
 
   async function listChildren(folderId) {
+    if (proxyMode()) {
+      const j = await proxyGet("/api/children", { id: folderId });
+      return j.files || [];
+    }
     const r = await api("files", {
       q: `'${folderId}' in parents and trashed=false`,
       fields: FIELDS, pageSize: 200, orderBy: "folder,name",
@@ -209,7 +234,7 @@
 
   window.Drive = {
     connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder, rootId, restoreSession,
-    ensureFresh, renew, needsRenew,
+    ensureFresh, renew, needsRenew, proxyMode, proxyUrl, fileUrl,
     mappings, setMapping, clientId, setClientId,
     isLive, gisReady, state
   };
