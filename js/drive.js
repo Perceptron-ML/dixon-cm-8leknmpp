@@ -52,13 +52,13 @@
 
   const rootId = () => (window.DRIVE_ROOT_ID || "").trim();
 
-  function connect(interactive) {
+  function connect(interactive, hintEmail) {
     return new Promise((resolve, reject) => {
       const id = clientId();
       if (!id) return reject(new Error("no-client-id"));
       if (!gisReady()) return reject(new Error("gis-not-loaded"));
       let settled = false;
-      const client = google.accounts.oauth2.initTokenClient({
+      const opts = {
         client_id: id,
         scope: SCOPE,
         prompt: interactive === false ? "none" : "consent",
@@ -72,10 +72,48 @@
           whoAmI().then(() => { saveSession(); resolve(state); }).catch(() => resolve(state));
         },
         error_callback: err => { settled = true; reject(new Error((err && err.type) || "popup-blocked")); }
-      });
+      };
+      /* renewing: ask Google for the same account, so a multi-account browser
+         never silently swaps which Drive we are reading */
+      const hint = hintEmail || state.email;
+      if (interactive === false && hint) opts.hint = hint;
+      const client = google.accounts.oauth2.initTokenClient(opts);
       client.requestAccessToken();
       setTimeout(() => { if (!settled) reject(new Error("timeout")); }, 120000);
     });
+  }
+
+  const RENEW_MARGIN_MS = 10 * 60 * 1000;   /* renew once under 10 minutes left */
+  let renewInFlight = null;
+
+  function needsRenew() {
+    return state.connected && (state.expiresAt - Date.now()) < RENEW_MARGIN_MS;
+  }
+
+  /* Silently mint a fresh token. Works with no popup because the browser still
+     holds the Google session and the scope was already granted. */
+  function renew() {
+    if (renewInFlight) return renewInFlight;
+    const hint = state.email;
+    renewInFlight = connect(false, hint)
+      .then(r => { renewInFlight = null; return r; })
+      .catch(e => {
+        renewInFlight = null;
+        /* only drop the session if Google says re-consent is genuinely needed */
+        if (/interaction_required|consent_required|login_required|access_denied/i.test(e.message || "")) {
+          state.connected = false;
+          clearSession();
+        }
+        throw e;
+      });
+    return renewInFlight;
+  }
+
+  /* Call before any Drive work: keeps a live session live. */
+  async function ensureFresh() {
+    if (!state.connected) return false;
+    if (!needsRenew()) return true;
+    try { await renew(); return true; } catch (e) { return false; }
   }
 
   function disconnect() {
@@ -85,6 +123,7 @@
   }
 
   async function api(path, params, base) {
+    if (!isLive() && state.connected) { try { await renew(); } catch (e) {} }
     if (!isLive()) throw new Error("not-connected");
     const url = new URL((base || "https://www.googleapis.com/drive/v3/") + path);
     Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -170,6 +209,7 @@
 
   window.Drive = {
     connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder, rootId, restoreSession,
+    ensureFresh, renew, needsRenew,
     mappings, setMapping, clientId, setClientId,
     isLive, gisReady, state
   };

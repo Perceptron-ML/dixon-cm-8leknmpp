@@ -1547,13 +1547,24 @@
 
   window.startDrivePolling = function () {
     if (drivePollTimer) return;
-    drivePollTimer = setInterval(() => {
-      if (document.hidden || !driveLive()) return;
+    drivePollTimer = setInterval(async () => {
+      if (!window.Drive.state.connected) return;
+      /* keep the session alive even while the tab sits in the background */
+      const ok = await window.Drive.ensureFresh();
+      if (!ok) {
+        if (!window.Drive.state.connected) { refresh(); toast("Google Drive needs you to sign in again"); }
+        return;
+      }
+      if (document.hidden) return;
       window.refreshDrive(false);
     }, 20000);
   };
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && driveLive()) window.refreshDrive(false);
+
+  document.addEventListener("visibilitychange", async () => {
+    if (document.hidden || !window.Drive.state.connected) return;
+    const ok = await window.Drive.ensureFresh();
+    if (ok) window.refreshDrive(false);
+    else refresh();
   });
 
   window.autoMapCases = async function () {
