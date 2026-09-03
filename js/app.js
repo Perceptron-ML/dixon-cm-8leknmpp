@@ -1362,7 +1362,7 @@
          <input type="file" id="uploadInput" multiple hidden>`;
 
     const strip = live
-      ? `<div class="live-strip"><span class="live-dot"></span><span>Live from Google Drive · <strong>${esc(map.name)}</strong>${window.Drive.state.email ? ` · ${esc(window.Drive.state.email)}` : ""}</span></div>`
+      ? `<div class="live-strip"><span class="live-dot"></span><span>Live from the firm's Google Drive · <strong>${esc(map.name)}</strong>${(!window.Drive.proxyMode() && window.Drive.state.email) ? ` · ${esc(window.Drive.state.email)}` : ""}</span></div>`
       : map
       ? `<div class="live-strip off"><span>Linked to "${esc(map.name)}" · sign in to Google to show live files</span></div>`
       : "";
