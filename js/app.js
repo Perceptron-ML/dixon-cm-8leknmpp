@@ -2982,8 +2982,15 @@
   });
   bindBell();
   bindSearch();
-  if (window.Drive && window.Drive.proxyMode()) {
-    window.syncCasesFromDrive().then(r => { refresh(); window.startDrivePolling(); });
+  if (window.Drive && window.Drive.proxyUrl()) {
+    /* prefer the server-side credential when it is live, else fall back */
+    window.Drive.probeProxy().then(on => {
+      if (on) {
+        window.syncCasesFromDrive().then(() => { refresh(); window.startDrivePolling(); });
+      } else if (window.Drive.restoreSession && window.Drive.restoreSession()) {
+        window.syncCasesFromDrive().then(() => { refresh(); window.startDrivePolling(); });
+      }
+    });
   } else if (window.Drive && window.Drive.restoreSession && window.Drive.restoreSession()) {
     window.syncCasesFromDrive().then(r => {
       const n = r.linked + r.created;

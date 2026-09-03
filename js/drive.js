@@ -52,7 +52,24 @@
   /* When a proxy is configured the firm's credential lives server side and the
      demo is readable by anyone, with no Google sign in at all. */
   const proxyUrl = () => (window.DRIVE_PROXY || "").replace(/\/+$/, "");
-  const proxyMode = () => !!proxyUrl();
+  /* A proxy is only "on" once it actually answers with the firm's folders.
+     Until then we fall back to the signed-in path, so nothing regresses while
+     the service account is still being granted access. */
+  let proxyActive = false;
+  const proxyMode = () => proxyActive;
+
+  async function probeProxy() {
+    if (!proxyUrl()) { proxyActive = false; return false; }
+    try {
+      const u = new URL(proxyUrl() + "/api/children");
+      u.searchParams.set("id", rootId());
+      const r = await fetch(u.toString());
+      if (!r.ok) { proxyActive = false; return false; }
+      const j = await r.json();
+      proxyActive = Array.isArray(j.files) && j.files.length > 0;
+      return proxyActive;
+    } catch (e) { proxyActive = false; return false; }
+  }
 
   const isLive = () => proxyMode() || (state.connected && Date.now() < state.expiresAt);
 
@@ -234,7 +251,7 @@
 
   window.Drive = {
     connect, disconnect, listRoots, listChildren, whoAmI, uploadFile, createFolder, rootId, restoreSession,
-    ensureFresh, renew, needsRenew, proxyMode, proxyUrl, fileUrl,
+    ensureFresh, renew, needsRenew, proxyMode, proxyUrl, fileUrl, probeProxy,
     mappings, setMapping, clientId, setClientId,
     isLive, gisReady, state
   };
